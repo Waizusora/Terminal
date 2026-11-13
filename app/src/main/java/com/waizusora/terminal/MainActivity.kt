@@ -213,7 +213,6 @@ private fun TerminalScreen() {
                     .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("›", color = Color(0xFFB9D8C0), fontFamily = FontFamily.Monospace)
                 BasicTextField(
                     value = active.input,
                     onValueChange = { value ->
