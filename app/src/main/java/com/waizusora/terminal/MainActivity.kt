@@ -101,6 +101,8 @@ private fun TerminalScreen() {
         runtime.start(
             onOutput = { bytes ->
                 emulator.feed(bytes)
+                val response = emulator.readResponse()
+                if (response.isNotEmpty()) runtime.write(response)
                 session.cells = emulator.snapshot()
             },
             onStatus = { message -> session.output += message }
@@ -346,7 +348,7 @@ private fun buildTerminalLine(cells: IntArray, row: Int, columns: Int) =
                 background = background,
                 fontWeight = if ((attributes and 1) != 0) FontWeight.Bold else FontWeight.Normal,
                 fontStyle = if ((attributes and 4) != 0) FontStyle.Italic else FontStyle.Normal,
-                textDecoration = decorations.takeIf { it.isNotEmpty() }?.let(TextDecoration::combine)
+                textDecoration = decorations.takeIf { it.isNotEmpty() }?.let { TextDecoration.combine(it) }
             )
             pushStyle(style)
             var hasCharacter = false
@@ -440,10 +442,12 @@ private class MyshProcess(private val filesRoot: File) {
         }
     }
 
-    fun write(value: String) {
+    fun write(value: String) = write(value.toByteArray())
+
+    fun write(value: ByteArray) {
         try {
             process?.outputStream?.apply {
-                write(value.toByteArray())
+                write(value)
                 flush()
             }
         } catch (_: IOException) {
