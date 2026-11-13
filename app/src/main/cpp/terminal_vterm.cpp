@@ -137,3 +137,27 @@ Java_com_waizusora_terminal_NativeTerminal_nativeReadCells(
     }
     return result;
 }
+
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_waizusora_terminal_NativeTerminal_nativeReadResponse(
+    JNIEnv* env, jclass, jlong handle) {
+    TerminalState* state = stateFrom(handle);
+    if (state == nullptr) return env->NewByteArray(0);
+
+    const size_t pending = vterm_output_get_buffer_current(state->terminal);
+    if (pending == 0) return env->NewByteArray(0);
+
+    std::vector<char> response(pending);
+    const size_t count = vterm_output_read(
+        state->terminal, response.data(), response.size()
+    );
+    jbyteArray result = env->NewByteArray(static_cast<jsize>(count));
+    if (result != nullptr && count > 0) {
+        env->SetByteArrayRegion(
+            result, 0, static_cast<jsize>(count),
+            reinterpret_cast<const jbyte*>(response.data())
+        );
+    }
+    return result;
+}
