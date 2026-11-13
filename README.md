@@ -5,7 +5,7 @@ Terminal is a native Android terminal application that runs the Mysh executable 
 ## Project identity
 
 - Application name: Terminal
-- Application ID: \`com.waizusora.terminal\`
+- Application ID: `com.waizusora.terminal`
 - Minimum Android version: Android 8.0 (API 26)
 - Language: Kotlin and C++
 - UI toolkit: Jetpack Compose
@@ -21,7 +21,7 @@ The interface is intentionally limited to a terminal workspace. The top bar cont
 
 Each session owns an independent libvterm instance. Mysh output bytes are passed to the emulator, which maintains a VT screen grid. The Compose renderer reads the cell grid and renders Unicode text, foreground and background colors, bold, italic, underline, strike-through, and reverse video.
 
-The application advertises the \`xterm-256color\` terminal profile and \`truecolor\` through the child process environment. The native engine is built from the upstream libvterm 0.3.3 release archive. CMake verifies the downloaded archive using its pinned SHA-256 digest.
+The application advertises the `xterm-256color` terminal profile and `truecolor` through the child process environment. The native engine is built from the upstream libvterm 0.3.3 release archive. CMake verifies the downloaded archive using its pinned SHA-256 digest.
 
 The terminal grid is currently fixed at 24 rows by 80 columns. Scrollback storage, cursor drawing, mouse reporting, clipboard integration, dynamic terminal resizing, and broader xterm extensions remain future work.
 
@@ -37,21 +37,21 @@ The terminal grid is currently fixed at 24 rows by 80 columns. Automatic viewpor
 
 The application initializes the following directories under its private files directory:
 
-\`\`\`text
+```text
 files/
 ├── bin/
 ├── etc/
 ├── home/user/
 ├── lib/
 └── usr/bin/
-\`\`\`
+```
 
-The Mysh executable is expected at \`files/bin/mysh\`. External command lookup is restricted to the application's \`bin\` and \`usr/bin\` directories through the child process environment.
+The Mysh executable is expected at `files/bin/mysh`. External command lookup is restricted to the application's `bin` and `usr/bin` directories through the child process environment.
 
 ## Native dependencies and licensing
 
 - libvterm 0.3.3 is distributed under the MIT License.
-- The libvterm license text is included at \`app/src/main/cpp/third_party/libvterm-LICENSE\`.
+- The libvterm license text is included at `app/src/main/cpp/third_party/libvterm-LICENSE`.
 - The libvterm release archive is fetched by CMake and verified against a fixed SHA-256 digest.
 - The application remains licensed under BSD 3-Clause.
 - No GPL dependency is intentionally included.
@@ -62,9 +62,9 @@ Third-party notices and license obligations must be preserved when redistributin
 
 Build the debug APK with:
 
-\`\`\`sh
+```sh
 gradle :app:assembleDebug
-\`\`\`
+```
 
 The project requires JDK 17, Android SDK 35, Android NDK 27.2.12479018, and CMake 3.22.1. CMake downloads the pinned libvterm source archive during native configuration, so the first build requires network access.
 
@@ -76,4 +76,4 @@ The native PTY and terminal engine integration has not been considered verified 
 
 ## Security boundary
 
-The configured PATH limits ordinary command lookup to the application's \`bin\` and \`usr/bin\` directories, but it is not a hard execution boundary. Mysh must independently validate canonical executable paths and reject absolute paths or traversal outside the private filesystem. Processes launched under the application UID retain that UID's Android permissions; this design is not an operating-system sandbox. Do not install untrusted executables.
+The configured PATH limits ordinary command lookup to the application's `bin` and `usr/bin` directories, but it is not a hard execution boundary. Mysh must independently validate canonical executable paths and reject absolute paths or traversal outside the private filesystem. Processes launched under the application UID retain that UID's Android permissions; this design is not an operating-system sandbox. Do not install untrusted executables.
