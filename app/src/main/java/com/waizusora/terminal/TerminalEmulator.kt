@@ -1,0 +1,52 @@
+package com.waizusora.terminal
+
+internal object NativeTerminal {
+    init {
+        System.loadLibrary("terminal_vterm")
+    }
+
+    @JvmStatic external fun nativeCreate(rows: Int, columns: Int): Long
+    @JvmStatic external fun nativeDestroy(handle: Long)
+    @JvmStatic external fun nativeFeed(handle: Long, input: ByteArray)
+    @JvmStatic external fun nativeResize(handle: Long, rows: Int, columns: Int)
+    @JvmStatic external fun nativeReadCells(handle: Long): IntArray
+}
+
+internal class TerminalEmulator(
+    val rows: Int = 24,
+    val columns: Int = 80
+) : AutoCloseable {
+    private var handle: Long = NativeTerminal.nativeCreate(rows, columns)
+
+    init {
+        check(handle != 0L) { "Unable to initialize the native terminal emulator." }
+    }
+
+    @Synchronized
+    fun feed(bytes: ByteArray) {
+        if (handle != 0L && bytes.isNotEmpty()) {
+            NativeTerminal.nativeFeed(handle, bytes)
+        }
+    }
+
+    @Synchronized
+    fun snapshot(): IntArray {
+        return if (handle != 0L) {
+            NativeTerminal.nativeReadCells(handle)
+        } else {
+            IntArray(rows * columns * CELL_STRIDE)
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        if (handle != 0L) {
+            NativeTerminal.nativeDestroy(handle)
+            handle = 0L
+        }
+    }
+
+    companion object {
+        const val CELL_STRIDE = 10
+    }
+}
