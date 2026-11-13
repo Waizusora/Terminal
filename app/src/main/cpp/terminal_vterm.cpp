@@ -1,17 +1,21 @@
 #include <jni.h>
 #include <cstdint>
 #include <vector>
+#include <deque>
+#include <algorithm>
 
 #include "vterm.h"
 
 namespace {
 constexpr int kCellStride = 10;
+constexpr size_t kMaximumScrollbackLines = 2000;
 
 struct TerminalState {
     VTerm* terminal;
     VTermScreen* screen;
     int rows;
     int columns;
+    std::deque<std::vector<VTermScreenCell>> scrollback;
 };
 
 TerminalState* stateFrom(jlong handle) {
@@ -31,7 +35,56 @@ jint packColor(const VTermColor& color, bool foreground) {
         (static_cast<jint>(color.rgb.green) << 8) |
         static_cast<jint>(color.rgb.blue);
 }
+
+void encodeCell(const VTermScreenCell& cell, jint* output) {
+    for (int index = 0; index < VTERM_MAX_CHARS_PER_CELL; ++index) {
+        output[index] = static_cast<jint>(cell.chars[index]);
+    }
+    output[6] = static_cast<jint>(cell.width);
+    jint attributes = 0;
+    if (cell.attrs.bold) attributes |= 1;
+    if (cell.attrs.underline) attributes |= 2;
+    if (cell.attrs.italic) attributes |= 4;
+    if (cell.attrs.blink) attributes |= 8;
+    if (cell.attrs.reverse) attributes |= 16;
+    if (cell.attrs.strike) attributes |= 32;
+    output[7] = attributes;
+    output[8] = packColor(cell.fg, true);
+    output[9] = packColor(cell.bg, false);
 }
+
+int pushScrollbackLine(int columns, const VTermScreenCell* cells, void* user) {
+    auto* state = static_cast<TerminalState*>(user);
+    if (state == nullptr || cells == nullptr || columns <= 0) return 0;
+    state->scrollback.emplace_back(cells, cells + columns);
+    if (state->scrollback.size() > kMaximumScrollbackLines) {
+        state->scrollback.pop_front();
+    }
+    return 1;
+}
+
+int popScrollbackLine(int columns, VTermScreenCell* cells, void* user) {
+    auto* state = static_cast<TerminalState*>(user);
+    if (state == nullptr || cells == nullptr || columns <= 0 ||
+        state->scrollback.empty()) return 0;
+    std::fill(cells, cells + columns, VTermScreenCell{});
+    const auto& line = state->scrollback.back();
+    const size_t count = std::min(line.size(), static_cast<size_t>(columns));
+    std::copy(line.begin(), line.begin() + count, cells);
+    state->scrollback.pop_back();
+    return 1;
+}
+
+int clearScrollback(void* user) {
+    auto* state = static_cast<TerminalState*>(user);
+    if (state != nullptr) state->scrollback.clear();
+    return 1;
+}
+
+const VTermScreenCallbacks kScreenCallbacks = {
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    pushScrollbackLine, popScrollbackLine, clearScrollback
+};
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_waizusora_terminal_NativeTerminal_nativeCreate(
@@ -50,6 +103,7 @@ Java_com_waizusora_terminal_NativeTerminal_nativeCreate(
     vterm_set_utf8(state->terminal, 1);
     state->screen = vterm_obtain_screen(state->terminal);
     vterm_screen_enable_altscreen(state->screen, 1);
+    vterm_screen_set_callbacks(state->screen, &kScreenCallbacks, state);
     vterm_screen_set_damage_merge(state->screen, VTERM_DAMAGE_ROW);
     vterm_screen_reset(state->screen, 1);
     return reinterpret_cast<jlong>(state);
@@ -108,24 +162,9 @@ Java_com_waizusora_terminal_NativeTerminal_nativeReadCells(
         for (int column = 0; column < state->columns; ++column) {
             VTermScreenCell cell{};
             vterm_screen_get_cell(state->screen, VTermPos{row, column}, &cell);
-
             const size_t offset =
                 (static_cast<size_t>(row) * state->columns + column) * kCellStride;
-            for (int index = 0; index < VTERM_MAX_CHARS_PER_CELL; ++index) {
-                cells[offset + index] = static_cast<jint>(cell.chars[index]);
-            }
-
-            cells[offset + 6] = static_cast<jint>(cell.width);
-            jint attributes = 0;
-            if (cell.attrs.bold) attributes |= 1;
-            if (cell.attrs.underline) attributes |= 2;
-            if (cell.attrs.italic) attributes |= 4;
-            if (cell.attrs.blink) attributes |= 8;
-            if (cell.attrs.reverse) attributes |= 16;
-            if (cell.attrs.strike) attributes |= 32;
-            cells[offset + 7] = attributes;
-            cells[offset + 8] = packColor(cell.fg, true);
-            cells[offset + 9] = packColor(cell.bg, false);
+            encodeCell(cell, cells.data() + offset);
         }
     }
 
@@ -138,6 +177,29 @@ Java_com_waizusora_terminal_NativeTerminal_nativeReadCells(
     return result;
 }
 
+
+extern "C" JNIEXPORT jintArray JNICALL
+Java_com_waizusora_terminal_NativeTerminal_nativeReadScrollback(
+    JNIEnv* env, jclass, jlong handle) {
+    TerminalState* state = stateFrom(handle);
+    if (state == nullptr) return env->NewIntArray(0);
+
+    const size_t rowSize = static_cast<size_t>(state->columns) * kCellStride;
+    std::vector<jint> cells(state->scrollback.size() * rowSize, 0);
+    for (size_t row = 0; row < state->scrollback.size(); ++row) {
+        const auto& source = state->scrollback[row];
+        const size_t count = std::min(source.size(), static_cast<size_t>(state->columns));
+        for (size_t column = 0; column < count; ++column) {
+            encodeCell(source[column], cells.data() + row * rowSize + column * kCellStride);
+        }
+    }
+
+    jintArray result = env->NewIntArray(static_cast<jsize>(cells.size()));
+    if (result != nullptr && !cells.empty()) {
+        env->SetIntArrayRegion(result, 0, static_cast<jsize>(cells.size()), cells.data());
+    }
+    return result;
+}
 
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_com_waizusora_terminal_NativeTerminal_nativeReadResponse(
