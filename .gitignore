@@ -37,9 +37,8 @@ compile_commands.json
 out/
 target/
 
-# Rust
+# Rust build outputs
 **/target/
-Cargo.lock
 
 # Signing material and private keys
 *.jks
