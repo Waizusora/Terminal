@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.Executors
@@ -215,7 +216,10 @@ private fun TerminalScreen() {
                 Text("›", color = Color(0xFFB9D8C0), fontFamily = FontFamily.Monospace)
                 BasicTextField(
                     value = active.input,
-                    onValueChange = { active.input = it },
+                    onValueChange = { value ->
+                        if (value.isNotEmpty()) active.runtime.write(value)
+                        active.input = ""
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .padding(start = 8.dp),
@@ -234,7 +238,7 @@ private fun TerminalScreen() {
                     }
                 )
                 TerminalKey(label = "↵", onClick = {
-                    active.runtime.write(active.input + "\n")
+                    active.runtime.write("\r")
                     active.input = ""
                 })
             }
@@ -398,7 +402,13 @@ private fun xtermPalette(index: Int): Color {
 
 private class MyshProcess(private val filesRoot: File) {
     private val executor = Executors.newSingleThreadExecutor()
-    @Volatile private var process: Process? = null
+    private val pendingInput = ByteArrayOutputStream()
+
+    @Volatile
+    private var terminal: PseudoTerminal? = null
+
+    @Volatile
+    private var closed = false
 
     fun start(
         onOutput: (ByteArray) -> Unit,
@@ -412,53 +422,70 @@ private class MyshProcess(private val filesRoot: File) {
 
         val shell = File(bin, "mysh")
         if (!shell.isFile || !shell.canExecute()) {
-            onStatus("Mysh binary is not installed.\nExpected: ${shell.absolutePath}\n")
+            onStatus("Mysh binary is not installed.\nExpected: \${shell.absolutePath}\n")
             return
         }
 
         executor.execute {
+            var sessionTerminal: PseudoTerminal? = null
             try {
-                val builder = ProcessBuilder(shell.absolutePath)
-                    .directory(home)
-                    .redirectErrorStream(true)
-                builder.environment()["HOME"] = home.absolutePath
-                builder.environment()["PREFIX"] = filesRoot.absolutePath
-                builder.environment()["PATH"] = "${bin.absolutePath}:${usrBin.absolutePath}"
-                builder.environment()["TERM"] = "xterm-256color"
-                builder.environment()["COLORTERM"] = "truecolor"
-                val child = builder.start()
-                process = child
-                child.inputStream.use { stream ->
-                    val buffer = ByteArray(4096)
-                    while (true) {
-                        val count = stream.read(buffer)
-                        if (count < 0) break
-                        onOutput(buffer.copyOf(count))
+                sessionTerminal = PseudoTerminal(
+                    shell = shell.absolutePath,
+                    workingDirectory = home.absolutePath,
+                    home = home.absolutePath,
+                    prefix = filesRoot.absolutePath,
+                    path = "\${bin.absolutePath}:\${usrBin.absolutePath}"
+                )
+                sessionTerminal.start()
+
+                synchronized(this) {
+                    if (closed) {
+                        sessionTerminal.close()
+                        return@execute
                     }
+                    terminal = sessionTerminal
+                    val queued = pendingInput.toByteArray()
+                    pendingInput.reset()
+                    if (queued.isNotEmpty()) sessionTerminal.write(queued)
                 }
-            } catch (error: IOException) {
-                onStatus("Unable to start Mysh: ${error.message}\n")
+
+                while (!closed) {
+                    val bytes = sessionTerminal.read()
+                    if (bytes.isEmpty()) break
+                    onOutput(bytes)
+                }
+            } catch (error: Exception) {
+                if (!closed) onStatus("Unable to start Mysh PTY: \${error.message}\n")
+            } finally {
+                synchronized(this) {
+                    if (terminal === sessionTerminal) terminal = null
+                }
+                sessionTerminal?.close()
             }
         }
     }
 
     @Synchronized
-    fun write(value: String) = write(value.toByteArray())
+    fun write(value: String) = write(value.toByteArray(Charsets.UTF_8))
 
     @Synchronized
     fun write(value: ByteArray) {
-        try {
-            process?.outputStream?.apply {
-                write(value)
-                flush()
-            }
-        } catch (_: IOException) {
-            Unit
+        if (closed || value.isEmpty()) return
+        val activeTerminal = terminal
+        if (activeTerminal != null) {
+            activeTerminal.write(value)
+        } else {
+            pendingInput.write(value)
         }
     }
 
+    fun resize(rows: Int, columns: Int) {
+        terminal?.resize(rows, columns)
+    }
+
     fun close() {
-        process?.destroy()
+        closed = true
+        terminal?.close()
         executor.shutdownNow()
     }
 }
