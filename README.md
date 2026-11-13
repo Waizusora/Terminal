@@ -47,4 +47,4 @@ The Android application initializes private directories and manages independent 
 
 ## Security boundary
 
-The executable lookup policy is an application-level path restriction, not an operating-system security sandbox. Processes launched under the application UID may retain the permissions granted to that UID. Do not install untrusted executables.
+The configured PATH limits ordinary command lookup to the application's `bin` and `usr/bin` directories, but it is not a hard execution boundary. Mysh must independently validate canonical executable paths and reject absolute paths or traversal outside the private filesystem. Processes launched under the application UID retain that UID's Android permissions; this design is not an operating-system sandbox. Do not install untrusted executables.
