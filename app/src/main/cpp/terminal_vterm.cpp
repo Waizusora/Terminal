@@ -370,6 +370,8 @@ Java_com_waizusora_terminal_NativePty_nativeStart(
 
     const std::vector<std::pair<std::string, std::string>> overrides = {
         {"HOME", home},
+        {"PWD", workingDirectory},
+        {"SHELL", shell},
         {"PREFIX", prefix},
         {"PATH", path},
         {"LD_LIBRARY_PATH", prefix + "/lib"},
