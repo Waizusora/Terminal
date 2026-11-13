@@ -484,6 +484,7 @@ private class MyshProcess(
                         sessionTerminal.close()
                         return@execute
                     }
+                    sessionTerminal.resize(rows, columns)
                     terminal = sessionTerminal
                     val queued = pendingInput.toByteArray()
                     pendingInput.reset()
