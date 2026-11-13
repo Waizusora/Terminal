@@ -47,7 +47,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Waizusora/Mysh
-          ref: 819c717041183697f588c07a0273cd33b255f7df
+          ref: 72eb046782a1992d03f5ff9585402aca87ad457b
           path: .build/Mysh
 
       - name: Set up Rust toolchain
@@ -155,7 +155,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download signed release APK
+      - name: Download signed APK
         uses: actions/download-artifact@v4
         with:
           name: terminal-release-apk
