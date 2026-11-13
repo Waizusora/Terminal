@@ -174,6 +174,7 @@ Java_com_waizusora_terminal_NativeTerminal_nativeReadResponse(
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
+#include <vector>
 
 namespace {
 struct PtyProcess {
@@ -242,6 +243,26 @@ Java_com_waizusora_terminal_NativePty_nativeStart(
         return 0;
     }
 
+    std::string homeEnvironment = "HOME=" + home;
+    std::string prefixEnvironment = "PREFIX=" + prefix;
+    std::string pathEnvironment = "PATH=" + path;
+    std::string termEnvironment = "TERM=xterm-256color";
+    std::string colorEnvironment = "COLORTERM=truecolor";
+    std::string langEnvironment = "LANG=C.UTF-8";
+    char* arguments[] = {
+        const_cast<char*>(shell.c_str()),
+        nullptr
+    };
+    char* environment[] = {
+        homeEnvironment.data(),
+        prefixEnvironment.data(),
+        pathEnvironment.data(),
+        termEnvironment.data(),
+        colorEnvironment.data(),
+        langEnvironment.data(),
+        nullptr
+    };
+
     struct winsize windowSize {};
     windowSize.ws_row = static_cast<unsigned short>(rows > 0 ? rows : 24);
     windowSize.ws_col = static_cast<unsigned short>(columns > 0 ? columns : 80);
@@ -279,12 +300,7 @@ Java_com_waizusora_terminal_NativePty_nativeStart(
         if (slave > STDERR_FILENO) close(slave);
         if (chdir(workingDirectory.c_str()) != 0) _exit(126);
 
-        setenv("HOME", home.c_str(), 1);
-        setenv("PREFIX", prefix.c_str(), 1);
-        setenv("PATH", path.c_str(), 1);
-        setenv("TERM", "xterm-256color", 1);
-        setenv("COLORTERM", "truecolor", 1);
-        execl(shell.c_str(), shell.c_str(), static_cast<char*>(nullptr));
+        execve(shell.c_str(), arguments, environment);
         _exit(127);
     }
 
@@ -365,6 +381,7 @@ Java_com_waizusora_terminal_NativePty_nativeClose(
     if (process == nullptr) return;
 
     kill(-process->childPid, SIGHUP);
+    kill(process->childPid, SIGHUP);
     int status = 0;
     pid_t result;
     do {
