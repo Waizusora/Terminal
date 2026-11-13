@@ -372,6 +372,9 @@ Java_com_waizusora_terminal_NativePty_nativeStart(
         {"HOME", home},
         {"PREFIX", prefix},
         {"PATH", path},
+        {"LD_LIBRARY_PATH", prefix + "/lib"},
+        {"TMPDIR", prefix + "/tmp"},
+        {"TERMINFO", prefix + "/share/terminfo"},
         {"TERM", "xterm-256color"},
         {"COLORTERM", "truecolor"},
         {"LANG", "C.UTF-8"}
