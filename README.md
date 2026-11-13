@@ -21,7 +21,7 @@ The interface is intentionally limited to a terminal workspace. The top bar cont
 
 Each session owns an independent libvterm instance. Mysh output bytes are passed to the emulator, which maintains a VT screen grid. The Compose renderer reads the cell grid and renders Unicode text, foreground and background colors, bold, italic, underline, strike-through, and reverse video.
 
-The application advertises the `xterm-256color` terminal profile and `truecolor` through the child process environment. The native engine is built from the upstream libvterm 0.3.3 release archive. CMake verifies the downloaded archive using its pinned SHA-256 digest.
+The application advertises the `xterm-256color` terminal profile and `truecolor` through the child process environment. The native engine is built from the upstream libvterm 0.3.3 release archive, retrieved from the MacPorts distfiles mirror. CMake verifies the downloaded archive using its pinned SHA-256 digest.
 
 ### PTY process architecture
 
