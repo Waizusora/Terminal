@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.Executors
+import kotlinx.coroutines.flow.collect
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -153,9 +155,23 @@ private fun TerminalScreen() {
 
     val active = sessions.firstOrNull { it.id == activeId }
     val terminalScrollState = rememberScrollState()
+    var followTerminalOutput by remember { mutableStateOf(true) }
+
+    LaunchedEffect(terminalScrollState) {
+        snapshotFlow {
+            terminalScrollState.value >= terminalScrollState.maxValue - 48
+        }.collect { atBottom ->
+            followTerminalOutput = atBottom
+        }
+    }
+
+    LaunchedEffect(active?.id) {
+        followTerminalOutput = true
+        terminalScrollState.scrollTo(terminalScrollState.maxValue)
+    }
 
     LaunchedEffect(active?.id, active?.contentVersion) {
-        if (terminalScrollState.value >= terminalScrollState.maxValue - 48) {
+        if (followTerminalOutput) {
             terminalScrollState.scrollTo(terminalScrollState.maxValue)
         }
     }
