@@ -175,6 +175,10 @@ Java_com_waizusora_terminal_NativeTerminal_nativeReadResponse(
 #include <termios.h>
 #include <unistd.h>
 #include <vector>
+#include <utility>
+#include <time.h>
+
+extern char** environ;
 
 namespace {
 struct PtyProcess {
@@ -319,7 +323,7 @@ Java_com_waizusora_terminal_NativePty_nativeStart(
         if (slave > STDERR_FILENO) close(slave);
         if (chdir(workingDirectory.c_str()) != 0) _exit(126);
 
-        execve(shell.c_str(), arguments, environment);
+        execve(shell.c_str(), arguments, environment.data());
         _exit(127);
     }
 
