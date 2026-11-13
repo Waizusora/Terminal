@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -35,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
@@ -82,6 +84,12 @@ private class TerminalSession(
     var output by mutableStateOf("")
     var input by mutableStateOf("")
     var cells by mutableStateOf(emulator.snapshot())
+
+    fun resize(rows: Int, columns: Int) {
+        emulator.resize(rows, columns)
+        runtime.resize(rows, columns)
+        cells = emulator.snapshot()
+    }
 }
 
 @Composable
@@ -91,11 +99,16 @@ private fun TerminalScreen() {
     var activeId by remember { mutableStateOf(1) }
     var nextSessionId by remember { mutableStateOf(1) }
     var controlArmed by remember { mutableStateOf(false) }
+    var terminalRows by remember { mutableStateOf(24) }
+    var terminalColumns by remember { mutableStateOf(80) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val cellWidthPx = with(density) { 13.sp.toPx() * 0.602f }
+    val lineHeightPx = with(density) { 19.sp.toPx() }
 
     fun createSession() {
         val id = nextSessionId++
-        val runtime = MyshProcess(context.filesDir)
-        val emulator = TerminalEmulator()
+        val runtime = MyshProcess(context.filesDir, terminalRows, terminalColumns)
+        val emulator = TerminalEmulator(terminalRows, terminalColumns)
         val session = TerminalSession(id, runtime, emulator)
         sessions.add(session)
         activeId = id
@@ -190,7 +203,6 @@ private fun TerminalScreen() {
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp)
-                .verticalScroll(rememberScrollState())
         ) {
             if (!active?.output.isNullOrEmpty()) {
                 Text(
@@ -202,7 +214,28 @@ private fun TerminalScreen() {
                 )
             }
             if (active != null) {
-                TerminalViewport(cells = active.cells)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .onSizeChanged { size ->
+                            if (size.width > 0 && size.height > 0) {
+                                val columns = (size.width / cellWidthPx).toInt().coerceIn(1, 500)
+                                val rows = (size.height / lineHeightPx).toInt().coerceIn(1, 300)
+                                if (rows != terminalRows || columns != terminalColumns) {
+                                    terminalRows = rows
+                                    terminalColumns = columns
+                                    sessions.forEach { it.resize(rows, columns) }
+                                }
+                            }
+                        }
+                ) {
+                    TerminalViewport(
+                        cells = active.cells,
+                        rows = terminalRows,
+                        columns = terminalColumns
+                    )
+                }
             }
         }
 
@@ -311,9 +344,7 @@ private fun TerminalKey(
 }
 
 @Composable
-private fun TerminalViewport(cells: IntArray) {
-    val rows = 24
-    val columns = 80
+private fun TerminalViewport(cells: IntArray, rows: Int, columns: Int) {
     Column {
         repeat(rows) { row ->
             Text(
@@ -402,7 +433,13 @@ private fun xtermPalette(index: Int): Color {
     return Color(0xFF000000.toInt() or rgb)
 }
 
-private class MyshProcess(private val filesRoot: File) {
+private class MyshProcess(
+    private val filesRoot: File,
+    initialRows: Int,
+    initialColumns: Int
+) {
+    @Volatile private var rows = initialRows
+    @Volatile private var columns = initialColumns
     private val executor = Executors.newSingleThreadExecutor()
     private val pendingInput = ByteArrayOutputStream()
 
@@ -436,7 +473,9 @@ private class MyshProcess(private val filesRoot: File) {
                     workingDirectory = home.absolutePath,
                     home = home.absolutePath,
                     prefix = filesRoot.absolutePath,
-                    path = "${bin.absolutePath}:${usrBin.absolutePath}"
+                    path = "${bin.absolutePath}:${usrBin.absolutePath}",
+                    rows = rows,
+                    columns = columns
                 )
                 sessionTerminal.start()
 
@@ -481,7 +520,11 @@ private class MyshProcess(private val filesRoot: File) {
         }
     }
 
+    @Synchronized
     fun resize(rows: Int, columns: Int) {
+        if (rows <= 0 || columns <= 0) return
+        this.rows = rows
+        this.columns = columns
         terminal?.resize(rows, columns)
     }
 
