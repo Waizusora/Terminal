@@ -25,9 +25,13 @@ The application advertises the \`xterm-256color\` terminal profile and \`truecol
 
 The terminal grid is currently fixed at 24 rows by 80 columns. Scrollback storage, cursor drawing, mouse reporting, clipboard integration, dynamic terminal resizing, and broader xterm extensions remain future work.
 
-### Interactive process limitation
+### PTY process architecture
 
-The current Mysh process is launched with Java \`ProcessBuilder\` pipes, not a pseudo-terminal (PTY). As a result, the process does not receive a real terminal device or terminal window-size ioctl. Setting \`TERM=xterm-256color\` does not replace PTY support. Full-screen interactive programs such as Vim, Nano, htop, and ncurses applications must not be considered supported until a PTY backend is implemented and verified.
+Each Mysh session uses an independent native pseudo-terminal (PTY) master/slave pair. The child process starts a new session, acquires the PTY slave as its controlling terminal, and receives the slave as standard input, output, and error. The native backend supports PTY input/output, an initial 24-by-80 window size, explicit resize requests, and process-group hangup during session shutdown. The previous Java `ProcessBuilder` pipe transport has been removed.
+
+The PTY backend is necessary for full-screen interactive applications, but compatibility is not yet verified. Actual behavior depends on Mysh, terminal escape-sequence support, keyboard translation, terminal capabilities data (terminfo), and device testing. Vim, Nano, htop, and ncurses applications must not be described as supported until tested on an Android device.
+
+The terminal grid is currently fixed at 24 rows by 80 columns. Automatic viewport-to-PTY resizing, scrollback storage, cursor drawing, mouse reporting, clipboard integration, and broader xterm extensions remain future work.
 
 ## Private filesystem
 
