@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -86,6 +88,7 @@ private class TerminalSession(
     var output by mutableStateOf("")
     var input by mutableStateOf("")
     var cells by mutableStateOf(emulator.snapshot())
+    var cursor by mutableStateOf(emulator.cursorSnapshot())
     var scrollback by mutableStateOf(emulator.scrollbackSnapshot() ?: intArrayOf())
     var contentVersion by mutableStateOf(0)
 
@@ -93,6 +96,7 @@ private class TerminalSession(
         emulator.resize(rows, columns)
         runtime.resize(rows, columns)
         cells = emulator.snapshot()
+        cursor = emulator.cursorSnapshot()
         emulator.scrollbackSnapshot()?.let { scrollback = it }
         contentVersion++
     }
@@ -124,6 +128,7 @@ private fun TerminalScreen() {
                 val response = emulator.readResponse()
                 if (response.isNotEmpty()) runtime.write(response)
                 session.cells = emulator.snapshot()
+                session.cursor = emulator.cursorSnapshot()
                 emulator.scrollbackSnapshot()?.let { session.scrollback = it }
                 session.contentVersion++
             },
@@ -278,7 +283,8 @@ private fun TerminalScreen() {
                     TerminalViewport(
                         cells = active.cells,
                         rows = terminalRows,
-                        columns = terminalColumns
+                        columns = terminalColumns,
+                        cursor = active.cursor
                     )
                 }
             }
@@ -389,7 +395,12 @@ private fun TerminalKey(
 }
 
 @Composable
-private fun TerminalViewport(cells: IntArray, rows: Int, columns: Int) {
+private fun TerminalViewport(cells: IntArray, rows: Int, columns: Int, cursor: IntArray) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val cursorX = with(density) { 13.sp.toDp() * 0.602f * cursor.getOrElse(1) { 0 }.coerceAtLeast(0) }
+    val cursorY = with(density) { 19.sp.toDp() * cursor.getOrElse(0) { 0 }.coerceAtLeast(0) }
+    val cursorHeight = with(density) { 19.sp.toDp() }
+    Box(modifier = Modifier.fillMaxWidth()) {
     Column {
         repeat(rows) { row ->
             Text(
@@ -401,6 +412,15 @@ private fun TerminalViewport(cells: IntArray, rows: Int, columns: Int) {
                 maxLines = 1
             )
         }
+    }
+    if (cursor.getOrElse(2) { 0 } != 0 && cursor.getOrElse(0) { 0 } in 0 until rows && cursor.getOrElse(1) { 0 } in 0 until columns) {
+        Box(
+            modifier = Modifier
+                .offset(x = cursorX, y = cursorY)
+                .size(width = 1.5.dp, height = cursorHeight)
+                .background(Color(0xFFECECEC))
+        )
+    }
     }
 }
 
@@ -500,8 +520,13 @@ private class MyshProcess(
     ) {
         val home = File(filesRoot, "home/user")
         val bin = File(filesRoot, "bin")
-        val usrBin = File(filesRoot, "usr/bin")
-        listOf(bin, usrBin, File(filesRoot, "etc"), home, File(filesRoot, "lib"))
+        val library = File(filesRoot, "lib")
+        val include = File(filesRoot, "include")
+        val share = File(filesRoot, "share")
+        val etc = File(filesRoot, "etc")
+        val temporary = File(filesRoot, "tmp")
+        val variable = File(filesRoot, "var")
+        listOf(bin, library, include, share, etc, temporary, variable, home)
             .forEach { it.mkdirs() }
 
         val shell = File(bin, "mysh")
@@ -518,7 +543,7 @@ private class MyshProcess(
                     workingDirectory = home.absolutePath,
                     home = home.absolutePath,
                     prefix = filesRoot.absolutePath,
-                    path = "${bin.absolutePath}:${usrBin.absolutePath}",
+                    path = bin.absolutePath,
                     rows = rows,
                     columns = columns
                 )
