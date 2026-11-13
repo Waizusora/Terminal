@@ -66,9 +66,9 @@ The project requires JDK 17, Android SDK 35, Android NDK 27.2.12479018, and CMak
 
 ## Runtime status
 
-The application manages independent Mysh processes and independent terminal emulator state for each session. The terminal engine parses VT control sequences and the renderer applies cell attributes and colors. The Mysh executable must be supplied for the target Android ABI before shell sessions can execute commands. The application reports a clear installation message when the executable is absent.
+The application manages independent Mysh processes, native PTY instances, and terminal emulator state for each session. The terminal engine parses VT control sequences and the renderer applies cell attributes and colors. The Mysh executable must be supplied for the target Android ABI before shell sessions can execute commands. The application reports a clear installation message when the executable is absent.
 
-The native engine integration has not been considered verified until the Android CI build and on-device behavior have both been checked.
+The native PTY and terminal engine integration has not been considered verified until the Android CI build and on-device behavior have both been checked.
 
 ## Security boundary
 
