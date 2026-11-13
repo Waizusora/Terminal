@@ -14,9 +14,13 @@ internal object NativeTerminal {
 }
 
 internal class TerminalEmulator(
-    val rows: Int = 24,
-    val columns: Int = 80
+    rows: Int = 24,
+    columns: Int = 80
 ) : AutoCloseable {
+    var rows: Int = rows
+        private set
+    var columns: Int = columns
+        private set
     private var handle: Long = NativeTerminal.nativeCreate(rows, columns)
 
     init {
@@ -33,6 +37,15 @@ internal class TerminalEmulator(
     @Synchronized
     fun readResponse(): ByteArray {
         return if (handle != 0L) NativeTerminal.nativeReadResponse(handle) else byteArrayOf()
+    }
+
+    @Synchronized
+    fun resize(newRows: Int, newColumns: Int) {
+        if (handle == 0L || newRows <= 0 || newColumns <= 0) return
+        if (rows == newRows && columns == newColumns) return
+        NativeTerminal.nativeResize(handle, newRows, newColumns)
+        rows = newRows
+        columns = newColumns
     }
 
     @Synchronized
