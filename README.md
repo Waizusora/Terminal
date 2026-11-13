@@ -19,9 +19,9 @@ The interface is intentionally limited to a terminal workspace. The top bar cont
 
 ## Terminal emulation
 
-Each session owns an independent libvterm instance. Mysh output bytes are passed to the emulator, which maintains a VT screen grid. The Compose renderer reads the cell grid and renders Unicode text, foreground and background colors, bold, italic, underline, strike-through, and reverse video.
+Each session owns an independent libvterm instance. Mysh output bytes are passed to the emulator, which maintains a VT screen grid. The Compose renderer reads the cell grid and renders Unicode text, foreground and background colors, bold, italic, underline, strike-through, and reverse video. The cursor position and visibility are obtained from libvterm and rendered as a visible cursor bar in the active terminal viewport.
 
-The application advertises the `xterm-256color` terminal profile and `truecolor` through the child process environment. The native engine is built from the upstream libvterm 0.3.3 release archive, retrieved from the MacPorts distfiles mirror. CMake verifies the downloaded archive using its pinned SHA-256 digest.
+The application advertises the `xterm-256color` terminal profile and `truecolor` through the child process environment. Cursor movement and cursor visibility are tracked through libvterm screen callbacks and exposed to the Compose renderer. The native engine is built from the upstream libvterm 0.3.3 release archive, retrieved from the MacPorts distfiles mirror. CMake verifies the downloaded archive using its pinned SHA-256 digest.
 
 ### PTY process architecture
 
@@ -33,18 +33,21 @@ The terminal grid is sized from the available Compose viewport using the rendere
 
 ## Private filesystem
 
-The application initializes the following directories under its private files directory:
+The application uses its private files directory as the runtime prefix:
 
 ```text
 files/
-├── bin/
-├── etc/
-├── home/user/
-├── lib/
-└── usr/bin/
+├── bin/       # Mysh and executable commands
+├── lib/       # Shared libraries
+├── include/   # Development headers
+├── share/     # Shared data, including terminfo
+├── etc/       # Runtime configuration
+├── tmp/       # Temporary files
+├── var/       # Mutable runtime data
+└── home/user/ # User home directory
 ```
 
-The Mysh executable is expected at `files/bin/mysh`. External command lookup is restricted to the application's `bin` and `usr/bin` directories through the child process environment.
+The Mysh executable is expected at `files/bin/mysh`. The child process receives `PREFIX`, `HOME`, `PATH`, `LD_LIBRARY_PATH`, `TMPDIR`, and `TERMINFO` values rooted in this private prefix. Ordinary command lookup uses `files/bin`; shared library lookup uses `files/lib`. The directory layout is initialized when a shell session starts.
 
 ## Native dependencies and licensing
 
