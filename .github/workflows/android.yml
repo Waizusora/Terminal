@@ -2,9 +2,13 @@ name: Android CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+    tags:
+      - "v*"
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -12,7 +16,10 @@ permissions:
 
 jobs:
   build:
+    name: Build Android application
     runs-on: ubuntu-latest
+    outputs:
+      signed_release: ${{ steps.signing.outputs.ready }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -26,7 +33,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.9
+          gradle-version: "8.9"
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -34,5 +41,81 @@ jobs:
       - name: Install Android NDK and CMake
         run: sdkmanager "ndk;27.2.12479018" "cmake;3.22.1"
 
+      - name: Detect release signing configuration
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" && -n "$ANDROID_KEYSTORE_PASSWORD" && -n "$ANDROID_KEY_ALIAS" && -n "$ANDROID_KEY_PASSWORD" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "All release-signing secrets are configured."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Release signing is not fully configured. The signed release build and GitHub Release upload will be skipped."
+          fi
+
       - name: Build debug APK
-        run: gradle :app:assembleDebug
+        run: gradle :app:assembleDebug --stacktrace --warning-mode=all
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: terminal-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Decode Android signing keystore
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/terminal-release.jks"
+          chmod 600 "$RUNNER_TEMP/terminal-release.jks"
+
+      - name: Build signed release APK
+        id: release
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/terminal-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          gradle :app:assembleRelease --stacktrace --warning-mode=all
+          echo "built=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload signed release APK
+        if: steps.release.outputs.built == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terminal-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-release:
+    name: Publish signed APK to GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') && needs.build.outputs.signed_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download signed release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: terminal-release-apk
+          path: release
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release/app-release.apk
+          fail_on_unmatched_files: true
