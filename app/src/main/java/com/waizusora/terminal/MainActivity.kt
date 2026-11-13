@@ -36,7 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -71,10 +75,12 @@ class MainActivity : ComponentActivity() {
 
 private class TerminalSession(
     val id: Int,
-    val runtime: MyshProcess
+    val runtime: MyshProcess,
+    val emulator: TerminalEmulator
 ) {
     var output by mutableStateOf("")
     var input by mutableStateOf("")
+    var cells by mutableStateOf(emulator.snapshot())
 }
 
 @Composable
@@ -88,16 +94,24 @@ private fun TerminalScreen() {
     fun createSession() {
         val id = nextSessionId++
         val runtime = MyshProcess(context.filesDir)
-        val session = TerminalSession(id, runtime)
+        val emulator = TerminalEmulator()
+        val session = TerminalSession(id, runtime, emulator)
         sessions.add(session)
         activeId = id
-        runtime.start { text -> session.output += text }
+        runtime.start(
+            onOutput = { bytes ->
+                emulator.feed(bytes)
+                session.cells = emulator.snapshot()
+            },
+            onStatus = { message -> session.output += message }
+        )
     }
 
     fun closeSession(id: Int) {
         val index = sessions.indexOfFirst { it.id == id }
         if (index < 0) return
         sessions[index].runtime.close()
+        sessions[index].emulator.close()
         sessions.removeAt(index)
         if (activeId == id) activeId = sessions.lastOrNull()?.id ?: 0
     }
@@ -107,7 +121,12 @@ private fun TerminalScreen() {
     }
 
     DisposableEffect(Unit) {
-        onDispose { sessions.forEach { it.runtime.close() } }
+        onDispose {
+            sessions.forEach {
+                it.runtime.close()
+                it.emulator.close()
+            }
+        }
     }
 
     val active = sessions.firstOrNull { it.id == activeId }
@@ -170,13 +189,18 @@ private fun TerminalScreen() {
                 .padding(horizontal = 14.dp, vertical = 12.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = active?.output.orEmpty(),
-                color = Color(0xFFE2E2E2),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 13.sp,
-                lineHeight = 19.sp
-            )
+            if (!active?.output.isNullOrEmpty()) {
+                Text(
+                    text = active?.output.orEmpty(),
+                    color = Color(0xFFE2E2E2),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp
+                )
+            }
+            if (active != null) {
+                TerminalViewport(cells = active.cells)
+            }
         }
 
         if (active != null) {
@@ -278,11 +302,106 @@ private fun TerminalKey(
     }
 }
 
+@Composable
+private fun TerminalViewport(cells: IntArray) {
+    val rows = 24
+    val columns = 80
+    Column {
+        repeat(rows) { row ->
+            Text(
+                text = buildTerminalLine(cells, row, columns),
+                color = Color(0xFFE2E2E2),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+private fun buildTerminalLine(cells: IntArray, row: Int, columns: Int) =
+    buildAnnotatedString {
+        for (column in 0 until columns) {
+            val offset = (row * columns + column) * TerminalEmulator.CELL_STRIDE
+            if (offset + 9 >= cells.size) break
+            val width = cells[offset + 6]
+            if (width <= 0) continue
+
+            var foreground = terminalColor(cells[offset + 8], Color(0xFFE2E2E2))
+            var background = terminalColor(cells[offset + 9], Color.Transparent)
+            val attributes = cells[offset + 7]
+            if ((attributes and 16) != 0) {
+                val previousForeground = foreground
+                foreground = background
+                background = previousForeground
+            }
+
+            val decorations = buildList {
+                if ((attributes and 2) != 0) add(TextDecoration.Underline)
+                if ((attributes and 32) != 0) add(TextDecoration.LineThrough)
+            }
+            val style = SpanStyle(
+                color = foreground,
+                background = background,
+                fontWeight = if ((attributes and 1) != 0) FontWeight.Bold else FontWeight.Normal,
+                fontStyle = if ((attributes and 4) != 0) FontStyle.Italic else FontStyle.Normal,
+                textDecoration = decorations.takeIf { it.isNotEmpty() }?.let(TextDecoration::combine)
+            )
+            pushStyle(style)
+            var hasCharacter = false
+            for (index in 0 until 6) {
+                val codePoint = cells[offset + index]
+                if (codePoint == 0) break
+                append(String(Character.toChars(codePoint)))
+                hasCharacter = true
+            }
+            if (!hasCharacter) append(" ")
+            pop()
+        }
+    }
+
+private fun terminalColor(value: Int, default: Color): Color {
+    if (value == 0) return default
+    return when (value and -0x1000000) {
+        0x01000000 -> xtermPalette(value and 0xFF)
+        0x02000000 -> Color(0xFF000000.toInt() or (value and 0xFFFFFF))
+        else -> default
+    }
+}
+
+private fun xtermPalette(index: Int): Color {
+    val basic = intArrayOf(
+        0x000000, 0x800000, 0x008000, 0x808000,
+        0x000080, 0x800080, 0x008080, 0xC0C0C0,
+        0x808080, 0xFF0000, 0x00FF00, 0xFFFF00,
+        0x0000FF, 0xFF00FF, 0x00FFFF, 0xFFFFFF
+    )
+    val rgb = when {
+        index < 16 -> basic[index]
+        index < 232 -> {
+            val value = index - 16
+            val levels = intArrayOf(0, 95, 135, 175, 215, 255)
+            (levels[value / 36] shl 16) or
+                (levels[(value / 6) % 6] shl 8) or
+                levels[value % 6]
+        }
+        else -> {
+            val gray = 8 + (index - 232) * 10
+            (gray shl 16) or (gray shl 8) or gray
+        }
+    }
+    return Color(0xFF000000.toInt() or rgb)
+}
+
 private class MyshProcess(private val filesRoot: File) {
     private val executor = Executors.newSingleThreadExecutor()
     @Volatile private var process: Process? = null
 
-    fun start(onOutput: (String) -> Unit) {
+    fun start(
+        onOutput: (ByteArray) -> Unit,
+        onStatus: (String) -> Unit
+    ) {
         val home = File(filesRoot, "home/user")
         val bin = File(filesRoot, "bin")
         val usrBin = File(filesRoot, "usr/bin")
@@ -291,7 +410,7 @@ private class MyshProcess(private val filesRoot: File) {
 
         val shell = File(bin, "mysh")
         if (!shell.isFile || !shell.canExecute()) {
-            onOutput("Mysh binary is not installed.\nExpected: ${shell.absolutePath}\n")
+            onStatus("Mysh binary is not installed.\nExpected: ${shell.absolutePath}\n")
             return
         }
 
@@ -303,18 +422,20 @@ private class MyshProcess(private val filesRoot: File) {
                 builder.environment()["HOME"] = home.absolutePath
                 builder.environment()["PREFIX"] = filesRoot.absolutePath
                 builder.environment()["PATH"] = "${bin.absolutePath}:${usrBin.absolutePath}"
+                builder.environment()["TERM"] = "xterm-256color"
+                builder.environment()["COLORTERM"] = "truecolor"
                 val child = builder.start()
                 process = child
-                child.inputStream.bufferedReader().use { reader ->
-                    val buffer = CharArray(2048)
+                child.inputStream.use { stream ->
+                    val buffer = ByteArray(4096)
                     while (true) {
-                        val count = reader.read(buffer)
+                        val count = stream.read(buffer)
                         if (count < 0) break
-                        onOutput(String(buffer, 0, count))
+                        onOutput(buffer.copyOf(count))
                     }
                 }
             } catch (error: IOException) {
-                onOutput("Unable to start Mysh: ${error.message}\n")
+                onStatus("Unable to start Mysh: ${error.message}\n")
             }
         }
     }
