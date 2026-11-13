@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -68,30 +69,29 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private data class TerminalSession(
+private class TerminalSession(
     val id: Int,
-    val runtime: MyshProcess,
-    var output: String = "",
-    var input: String = ""
-)
+    val runtime: MyshProcess
+) {
+    var output by mutableStateOf("")
+    var input by mutableStateOf("")
+}
 
 @Composable
 private fun TerminalScreen() {
     val context = LocalContext.current
     val sessions = remember { mutableStateListOf<TerminalSession>() }
     var activeId by remember { mutableStateOf(1) }
+    var nextSessionId by remember { mutableStateOf(1) }
     var controlArmed by remember { mutableStateOf(false) }
 
     fun createSession() {
-        val id = (sessions.maxOfOrNull { it.id } ?: 0) + 1
+        val id = nextSessionId++
         val runtime = MyshProcess(context.filesDir)
         val session = TerminalSession(id, runtime)
         sessions.add(session)
         activeId = id
-        runtime.start { text ->
-            val index = sessions.indexOfFirst { it.id == id }
-            if (index >= 0) sessions[index].output += text
-        }
+        runtime.start { text -> session.output += text }
     }
 
     fun closeSession(id: Int) {
@@ -149,6 +149,7 @@ private fun TerminalScreen() {
                             if (session.id == activeId) Color(0xFF303238) else Color(0xFF1B1D22),
                             MaterialTheme.shapes.small
                         )
+                        .clickable { activeId = session.id }
                         .padding(start = 11.dp, end = 7.dp, top = 6.dp, bottom = 6.dp)
                 ) {
                     Text(
@@ -218,7 +219,7 @@ private fun TerminalScreen() {
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
-                listOf("ESC", "CTRL", "ALT", "TAB", "↑", "↓", "←", "→", "HOME", "END", "DEL", "C").forEach { key ->
+                listOf("ESC", "CTRL", "ALT", "TAB", "↑", "↓", "←", "→", "HOME", "END", "DEL", "C", "D", "Z", "L").forEach { key ->
                     TerminalKey(
                         label = key,
                         emphasized = key == "CTRL" && controlArmed,
@@ -235,8 +236,16 @@ private fun TerminalScreen() {
                                 "HOME" -> active.runtime.write("\u001B[H")
                                 "END" -> active.runtime.write("\u001B[F")
                                 "DEL" -> active.runtime.write("\u007F")
-                                "C" -> {
-                                    if (controlArmed) active.runtime.write("\u0003")
+                                "C", "D", "Z", "L" -> {
+                                    if (controlArmed) {
+                                        val controlCode = when (key) {
+                                            "C" -> 0x03
+                                            "D" -> 0x04
+                                            "Z" -> 0x1A
+                                            else -> 0x0C
+                                        }
+                                        active.runtime.write(controlCode.toChar().toString())
+                                    }
                                     controlArmed = false
                                 }
                             }
@@ -254,7 +263,6 @@ private fun TerminalKey(
     onClick: () -> Unit,
     emphasized: Boolean = false
 ) {
-    androidx.compose.foundation.clickable
     Surface(
         onClick = onClick,
         color = if (emphasized) Color(0xFF454951) else Color(0xFF24262C),
@@ -297,8 +305,13 @@ private class MyshProcess(private val filesRoot: File) {
                 builder.environment()["PATH"] = "${bin.absolutePath}:${usrBin.absolutePath}"
                 val child = builder.start()
                 process = child
-                child.inputStream.bufferedReader().useLines { lines ->
-                    lines.forEach { line -> onOutput("$line\n") }
+                child.inputStream.bufferedReader().use { reader ->
+                    val buffer = CharArray(2048)
+                    while (true) {
+                        val count = reader.read(buffer)
+                        if (count < 0) break
+                        onOutput(String(buffer, 0, count))
+                    }
                 }
             } catch (error: IOException) {
                 onOutput("Unable to start Mysh: ${error.message}\n")
