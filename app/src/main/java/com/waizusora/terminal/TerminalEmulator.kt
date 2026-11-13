@@ -10,6 +10,7 @@ internal object NativeTerminal {
     @JvmStatic external fun nativeFeed(handle: Long, input: ByteArray)
     @JvmStatic external fun nativeResize(handle: Long, rows: Int, columns: Int)
     @JvmStatic external fun nativeReadCells(handle: Long): IntArray
+    @JvmStatic external fun nativeReadResponse(handle: Long): ByteArray
 }
 
 internal class TerminalEmulator(
@@ -27,6 +28,11 @@ internal class TerminalEmulator(
         if (handle != 0L && bytes.isNotEmpty()) {
             NativeTerminal.nativeFeed(handle, bytes)
         }
+    }
+
+    @Synchronized
+    fun readResponse(): ByteArray {
+        return if (handle != 0L) NativeTerminal.nativeReadResponse(handle) else byteArrayOf()
     }
 
     @Synchronized
