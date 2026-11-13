@@ -48,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
@@ -422,7 +421,7 @@ private class MyshProcess(private val filesRoot: File) {
 
         val shell = File(bin, "mysh")
         if (!shell.isFile || !shell.canExecute()) {
-            onStatus("Mysh binary is not installed.\nExpected: \${shell.absolutePath}\n")
+            onStatus("Mysh binary is not installed.\nExpected: ${shell.absolutePath}\n")
             return
         }
 
@@ -434,7 +433,7 @@ private class MyshProcess(private val filesRoot: File) {
                     workingDirectory = home.absolutePath,
                     home = home.absolutePath,
                     prefix = filesRoot.absolutePath,
-                    path = "\${bin.absolutePath}:\${usrBin.absolutePath}"
+                    path = "${bin.absolutePath}:${usrBin.absolutePath}"
                 )
                 sessionTerminal.start()
 
@@ -455,7 +454,7 @@ private class MyshProcess(private val filesRoot: File) {
                     onOutput(bytes)
                 }
             } catch (error: Exception) {
-                if (!closed) onStatus("Unable to start Mysh PTY: \${error.message}\n")
+                if (!closed) onStatus("Unable to start Mysh PTY: ${error.message}\n")
             } finally {
                 synchronized(this) {
                     if (terminal === sessionTerminal) terminal = null
