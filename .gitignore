@@ -1,0 +1,60 @@
+# Gradle
+.gradle/
+build/
+**/build/
+.kotlin/
+
+# Android Studio and IntelliJ IDEA
+.idea/
+*.iml
+local.properties
+.cxx/
+.externalNativeBuild/
+captures/
+.navigation/
+
+# Android build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+obj/
+*.hprof
+
+# Native and CMake build outputs
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# Kotlin and Java
+out/
+target/
+
+# Rust
+**/target/
+Cargo.lock
+
+# Signing material and private keys
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.key
+*.pem
+
+# Local environment and editor files
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
