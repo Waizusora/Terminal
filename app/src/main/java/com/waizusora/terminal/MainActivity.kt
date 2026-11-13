@@ -557,6 +557,8 @@ private class MyshProcess(
                 }
 
                 val shell = MyshInstaller.ensureInstalled(assets, filesRoot)
+                val shellVersion = MyshInstaller.verifyExecutable(shell)
+                onStatus("$shellVersion\\n")
                 sessionTerminal = PseudoTerminal(
                     shell = shell.absolutePath,
                     workingDirectory = home.absolutePath,
