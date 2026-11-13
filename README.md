@@ -36,7 +36,7 @@ The Mysh executable is expected at `files/bin/mysh`. External command lookup is 
 Build the debug APK with:
 
 ```sh
-./gradlew :app:assembleDebug
+gradle :app:assembleDebug
 ```
 
 The project requires JDK 17 and Android SDK 35.
