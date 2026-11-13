@@ -18,6 +18,7 @@ struct TerminalState {
     int columns;
     std::deque<std::vector<VTermScreenCell>> scrollback;
     size_t scrollbackCellCount = 0;
+    uint64_t scrollbackVersion = 0;
 };
 
 TerminalState* stateFrom(jlong handle) {
@@ -59,6 +60,7 @@ int pushScrollbackLine(int columns, const VTermScreenCell* cells, void* user) {
     auto* state = static_cast<TerminalState*>(user);
     if (state == nullptr || cells == nullptr || columns <= 0) return 0;
     state->scrollback.emplace_back(cells, cells + columns);
+    ++state->scrollbackVersion;
     state->scrollbackCellCount += static_cast<size_t>(columns);
     while (!state->scrollback.empty() &&
            (state->scrollback.size() > kMaximumScrollbackLines ||
@@ -79,6 +81,7 @@ int popScrollbackLine(int columns, VTermScreenCell* cells, void* user) {
     std::copy(line.begin(), line.begin() + count, cells);
     state->scrollbackCellCount -= line.size();
     state->scrollback.pop_back();
+    ++state->scrollbackVersion;
     return 1;
 }
 
@@ -87,6 +90,7 @@ int clearScrollback(void* user) {
     if (state != nullptr) {
         state->scrollback.clear();
         state->scrollbackCellCount = 0;
+        ++state->scrollbackVersion;
     }
     return 1;
 }
@@ -185,6 +189,14 @@ Java_com_waizusora_terminal_NativeTerminal_nativeReadCells(
         );
     }
     return result;
+}
+
+ 
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_waizusora_terminal_NativeTerminal_nativeScrollbackVersion(
+    JNIEnv*, jclass, jlong handle) {
+    TerminalState* state = stateFrom(handle);
+    return state == nullptr ? 0 : static_cast<jlong>(state->scrollbackVersion);
 }
 
 
