@@ -14,15 +14,15 @@ if(NOT libvterm_POPULATED)
 endif()
 
 file(GLOB LIBVTERM_SOURCES CONFIGURE_DEPENDS
-    "\${libvterm_SOURCE_DIR}/src/*.c"
+    "${libvterm_SOURCE_DIR}/src/*.c"
 )
 
-add_library(vterm STATIC \${LIBVTERM_SOURCES})
-target_include_directories(vterm PUBLIC "\${libvterm_SOURCE_DIR}/include")
+add_library(vterm STATIC ${LIBVTERM_SOURCES})
+target_include_directories(vterm PUBLIC "${libvterm_SOURCE_DIR}/include")
 target_compile_features(vterm PRIVATE c_std_99)
 set_target_properties(vterm PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(terminal_vterm SHARED terminal_vterm.cpp)
-target_include_directories(terminal_vterm PRIVATE "\${libvterm_SOURCE_DIR}/include")
+target_include_directories(terminal_vterm PRIVATE "${libvterm_SOURCE_DIR}/include")
 target_compile_features(terminal_vterm PRIVATE cxx_std_17)
 target_link_libraries(terminal_vterm PRIVATE vterm)
