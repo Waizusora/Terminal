@@ -37,7 +37,7 @@ The Android CI workflow checks out a pinned Mysh source revision, cross-compiles
 
 ## Private filesystem
 
-Runtime directory creation and ABI-specific Mysh installation run on the session worker thread, keeping filesystem initialization and executable copying off the UI thread. Session startup errors are reported in the terminal output.
+Runtime directory creation, ABI-specific Mysh installation, and executable verification run on the session worker thread, keeping filesystem initialization and executable copying off the UI thread. Before creating the interactive PTY, Terminal launches the installed shell with `--version` and requires a successful exit within five seconds. This verifies that Android can load and execute the packaged binary for the current device ABI. Session startup errors are reported in the terminal output.
 
 The application uses its private files directory as the runtime prefix:
 
