@@ -84,11 +84,15 @@ private class TerminalSession(
     var output by mutableStateOf("")
     var input by mutableStateOf("")
     var cells by mutableStateOf(emulator.snapshot())
+    var scrollback by mutableStateOf(emulator.scrollbackSnapshot())
+    var contentVersion by mutableStateOf(0)
 
     fun resize(rows: Int, columns: Int) {
         emulator.resize(rows, columns)
         runtime.resize(rows, columns)
         cells = emulator.snapshot()
+        scrollback = emulator.scrollbackSnapshot()
+        contentVersion++
     }
 }
 
@@ -118,6 +122,8 @@ private fun TerminalScreen() {
                 val response = emulator.readResponse()
                 if (response.isNotEmpty()) runtime.write(response)
                 session.cells = emulator.snapshot()
+                session.scrollback = emulator.scrollbackSnapshot()
+                session.contentVersion++
             },
             onStatus = { message -> session.output += message }
         )
@@ -146,6 +152,13 @@ private fun TerminalScreen() {
     }
 
     val active = sessions.firstOrNull { it.id == activeId }
+    val terminalScrollState = rememberScrollState()
+
+    LaunchedEffect(active?.id, active?.contentVersion) {
+        if (terminalScrollState.value >= terminalScrollState.maxValue - 48) {
+            terminalScrollState.scrollTo(terminalScrollState.maxValue)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -198,38 +211,54 @@ private fun TerminalScreen() {
             }
         }
 
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp)
-        ) {
-            if (!active?.output.isNullOrEmpty()) {
-                Text(
-                    text = active?.output.orEmpty(),
-                    color = Color(0xFFE2E2E2),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 13.sp,
-                    lineHeight = 19.sp
-                )
-            }
-            if (active != null) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .onSizeChanged { size ->
-                            if (size.width > 0 && size.height > 0) {
-                                val columns = (size.width / cellWidthPx).toInt().coerceIn(1, 500)
-                                val rows = (size.height / lineHeightPx).toInt().coerceIn(1, 300)
-                                if (rows != terminalRows || columns != terminalColumns) {
-                                    terminalRows = rows
-                                    terminalColumns = columns
-                                    sessions.forEach { it.resize(rows, columns) }
-                                }
+        if (active != null) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .onSizeChanged { size ->
+                        if (size.width > 0 && size.height > 0) {
+                            val columns = (size.width / cellWidthPx).toInt().coerceIn(1, 500)
+                            val rows = (size.height / lineHeightPx).toInt().coerceIn(1, 300)
+                            if (rows != terminalRows || columns != terminalColumns) {
+                                terminalRows = rows
+                                terminalColumns = columns
+                                sessions.forEach { it.resize(rows, columns) }
                             }
                         }
+                    }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(terminalScrollState)
                 ) {
+                    if (active.output.isNotEmpty()) {
+                        Text(
+                            text = active.output,
+                            color = Color(0xFFE2E2E2),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp
+                        )
+                    }
+                    val historyRows = active.scrollback.size /
+                        (terminalColumns * TerminalEmulator.CELL_STRIDE)
+                    repeat(historyRows) { row ->
+                        Text(
+                            text = buildTerminalLine(
+                                active.scrollback,
+                                row,
+                                terminalColumns
+                            ),
+                            color = Color(0xFFE2E2E2),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                            maxLines = 1
+                        )
+                    }
                     TerminalViewport(
                         cells = active.cells,
                         rows = terminalRows,
