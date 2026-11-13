@@ -501,6 +501,7 @@ private fun xtermPalette(index: Int): Color {
 
 private class MyshProcess(
     private val filesRoot: File,
+    private val assets: AssetManager,
     initialRows: Int,
     initialColumns: Int
 ) {
@@ -552,9 +553,10 @@ private class MyshProcess(
             }
         }
 
-        val shell = File(bin, "mysh")
-        if (!shell.isFile || !shell.canExecute()) {
-            onStatus("Mysh binary is not installed.\nExpected: ${shell.absolutePath}\n")
+        val shell = try {
+            MyshInstaller.ensureInstalled(assets, filesRoot)
+        } catch (error: java.io.IOException) {
+            onStatus("Unable to install the bundled Mysh executable: ${error.message}\n")
             return
         }
 
