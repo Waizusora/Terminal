@@ -412,7 +412,7 @@ Java_com_waizusora_terminal_NativePty_nativeClose(
         if (result == process->childPid || (result < 0 && errno == ECHILD)) break;
         nanosleep(&interval, nullptr);
     }
-    if (result == 0) {
+    if (result != process->childPid && !(result < 0 && errno == ECHILD)) {
         kill(-process->childPid, SIGKILL);
         kill(process->childPid, SIGKILL);
         do {
