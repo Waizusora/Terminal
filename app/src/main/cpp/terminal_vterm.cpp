@@ -178,7 +178,7 @@ Java_com_waizusora_terminal_NativeTerminal_nativeReadResponse(
 #include <utility>
 #include <time.h>
 
-extern char** environ;
+extern "C" char** environ;
 
 namespace {
 struct PtyProcess {
@@ -405,11 +405,22 @@ Java_com_waizusora_terminal_NativePty_nativeClose(
 
     kill(-process->childPid, SIGHUP);
     kill(process->childPid, SIGHUP);
+
     int status = 0;
-    pid_t result;
-    do {
-        result = waitpid(process->childPid, &status, 0);
-    } while (result < 0 && errno == EINTR);
+    pid_t result = 0;
+    const struct timespec interval = {0, 10000000};
+    for (int attempt = 0; attempt < 50; ++attempt) {
+        result = waitpid(process->childPid, &status, WNOHANG);
+        if (result == process->childPid || (result < 0 && errno == ECHILD)) break;
+        nanosleep(&interval, nullptr);
+    }
+    if (result == 0) {
+        kill(-process->childPid, SIGKILL);
+        kill(process->childPid, SIGKILL);
+        do {
+            result = waitpid(process->childPid, &status, 0);
+        } while (result < 0 && errno == EINTR);
+    }
 
     if (process->masterFd >= 0) close(process->masterFd);
     delete process;
