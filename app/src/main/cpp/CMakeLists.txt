@@ -5,7 +5,7 @@ include(FetchContent)
 
 FetchContent_Declare(
     libvterm
-    URL https://launchpad.net/libvterm/trunk/0.3/+download/libvterm-0.3.3.tar.gz
+    URL https://distfiles.macports.org/libvterm/libvterm-0.3.3.tar.gz
     URL_HASH SHA256=09156f43dd2128bd347cbeebe50d9a571d32c64e0cf18d211197946aff7226e0
 )
 FetchContent_GetProperties(libvterm)
