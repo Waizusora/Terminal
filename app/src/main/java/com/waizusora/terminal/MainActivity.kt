@@ -526,7 +526,7 @@ private class MyshProcess(
         val etc = File(filesRoot, "etc")
         val temporary = File(filesRoot, "tmp")
         val variable = File(filesRoot, "var")
-        listOf(bin, library, include, share, etc, temporary, variable, home)
+        listOf(bin, library, include, share, File(share, "terminfo"), etc, temporary, variable, home)
             .forEach { it.mkdirs() }
 
         val shell = File(bin, "mysh")
