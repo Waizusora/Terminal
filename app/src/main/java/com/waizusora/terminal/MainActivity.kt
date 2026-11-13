@@ -520,14 +520,36 @@ private class MyshProcess(
     ) {
         val home = File(filesRoot, "home/user")
         val bin = File(filesRoot, "bin")
+        val sbin = File(filesRoot, "sbin")
         val library = File(filesRoot, "lib")
+        val libexec = File(filesRoot, "libexec")
         val include = File(filesRoot, "include")
         val share = File(filesRoot, "share")
         val etc = File(filesRoot, "etc")
         val temporary = File(filesRoot, "tmp")
         val variable = File(filesRoot, "var")
-        listOf(bin, library, include, share, File(share, "terminfo"), etc, temporary, variable, home)
-            .forEach { it.mkdirs() }
+        val run = File(filesRoot, "run")
+        val opt = File(filesRoot, "opt")
+        val dev = File(filesRoot, "dev")
+        val proc = File(filesRoot, "proc")
+        val usr = File(filesRoot, "usr")
+        val usrBin = File(usr, "bin")
+        val usrSbin = File(usr, "sbin")
+        val usrLibrary = File(usr, "lib")
+        val usrLibexec = File(usr, "libexec")
+        val usrInclude = File(usr, "include")
+        val usrShare = File(usr, "share")
+
+        listOf(
+            bin, sbin, library, libexec, include, share, File(share, "terminfo"),
+            etc, temporary, variable, run, opt, dev, proc, home,
+            usrBin, usrSbin, usrLibrary, usrLibexec, usrInclude,
+            usrShare, File(usrShare, "terminfo")
+        ).forEach { directory ->
+            if (!directory.isDirectory && !directory.mkdirs() && !directory.isDirectory) {
+                throw java.io.IOException("Unable to create runtime directory: ${directory.absolutePath}")
+            }
+        }
 
         val shell = File(bin, "mysh")
         if (!shell.isFile || !shell.canExecute()) {
@@ -543,7 +565,8 @@ private class MyshProcess(
                     workingDirectory = home.absolutePath,
                     home = home.absolutePath,
                     prefix = filesRoot.absolutePath,
-                    path = bin.absolutePath,
+                    path = listOf(bin, sbin, usrBin, usrSbin)
+                        .joinToString(File.pathSeparator) { it.absolutePath },
                     rows = rows,
                     columns = columns
                 )
