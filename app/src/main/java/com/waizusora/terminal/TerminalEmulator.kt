@@ -10,6 +10,7 @@ internal object NativeTerminal {
     @JvmStatic external fun nativeFeed(handle: Long, input: ByteArray)
     @JvmStatic external fun nativeResize(handle: Long, rows: Int, columns: Int)
     @JvmStatic external fun nativeReadCells(handle: Long): IntArray
+    @JvmStatic external fun nativeReadCursor(handle: Long): IntArray
     @JvmStatic external fun nativeReadScrollback(handle: Long): IntArray
     @JvmStatic external fun nativeScrollbackVersion(handle: Long): Long
     @JvmStatic external fun nativeReadResponse(handle: Long): ByteArray
@@ -58,6 +59,11 @@ internal class TerminalEmulator(
         } else {
             IntArray(rows * columns * CELL_STRIDE)
         }
+    }
+
+    @Synchronized
+    fun cursorSnapshot(): IntArray {
+        return if (handle != 0L) NativeTerminal.nativeReadCursor(handle) else intArrayOf(0, 0, 0)
     }
 
     @Synchronized
