@@ -23,8 +23,6 @@ Each session owns an independent libvterm instance. Mysh output bytes are passed
 
 The application advertises the `xterm-256color` terminal profile and `truecolor` through the child process environment. The native engine is built from the upstream libvterm 0.3.3 release archive. CMake verifies the downloaded archive using its pinned SHA-256 digest.
 
-The terminal grid is currently fixed at 24 rows by 80 columns. Scrollback storage, cursor drawing, mouse reporting, clipboard integration, dynamic terminal resizing, and broader xterm extensions remain future work.
-
 ### PTY process architecture
 
 Each Mysh session uses an independent native pseudo-terminal (PTY) master/slave pair. The child process starts a new session, acquires the PTY slave as its controlling terminal, and receives the slave as standard input, output, and error. The native backend supports PTY input/output, an initial 24-by-80 window size, explicit resize requests, and process-group hangup during session shutdown. The previous Java `ProcessBuilder` pipe transport has been removed.
