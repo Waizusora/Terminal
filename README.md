@@ -37,6 +37,8 @@ The Android CI workflow checks out a pinned Mysh source revision, cross-compiles
 
 ## Private filesystem
 
+Runtime directory creation and ABI-specific Mysh installation run on the session worker thread, keeping filesystem initialization and executable copying off the UI thread. Session startup errors are reported in the terminal output.
+
 The application uses its private files directory as the runtime prefix:
 
 ```text
