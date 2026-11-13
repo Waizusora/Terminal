@@ -11,6 +11,7 @@ internal object NativeTerminal {
     @JvmStatic external fun nativeResize(handle: Long, rows: Int, columns: Int)
     @JvmStatic external fun nativeReadCells(handle: Long): IntArray
     @JvmStatic external fun nativeReadScrollback(handle: Long): IntArray
+    @JvmStatic external fun nativeScrollbackVersion(handle: Long): Long
     @JvmStatic external fun nativeReadResponse(handle: Long): ByteArray
 }
 
@@ -23,6 +24,7 @@ internal class TerminalEmulator(
     var columns: Int = columns
         private set
     private var handle: Long = NativeTerminal.nativeCreate(rows, columns)
+    private var scrollbackVersion = -1L
 
     init {
         check(handle != 0L) { "Unable to initialize the native terminal emulator." }
@@ -59,8 +61,12 @@ internal class TerminalEmulator(
     }
 
     @Synchronized
-    fun scrollbackSnapshot(): IntArray {
-        return if (handle != 0L) NativeTerminal.nativeReadScrollback(handle) else intArrayOf()
+    fun scrollbackSnapshot(): IntArray? {
+        if (handle == 0L) return intArrayOf()
+        val currentVersion = NativeTerminal.nativeScrollbackVersion(handle)
+        if (currentVersion == scrollbackVersion) return null
+        scrollbackVersion = currentVersion
+        return NativeTerminal.nativeReadScrollback(handle)
     }
 
     @Synchronized
