@@ -40,14 +40,15 @@ files/
 ├── bin/       # Mysh and executable commands
 ├── lib/       # Shared libraries
 ├── include/   # Development headers
-├── share/     # Shared data, including terminfo
+├── share/     # Shared data
+│   └── terminfo/ # Terminal capability database
 ├── etc/       # Runtime configuration
 ├── tmp/       # Temporary files
 ├── var/       # Mutable runtime data
 └── home/user/ # User home directory
 ```
 
-The Mysh executable is expected at `files/bin/mysh`. The child process receives `PREFIX`, `HOME`, `PATH`, `LD_LIBRARY_PATH`, `TMPDIR`, and `TERMINFO` values rooted in this private prefix. Ordinary command lookup uses `files/bin`; shared library lookup uses `files/lib`. The directory layout is initialized when a shell session starts.
+The Mysh executable is expected at `files/bin/mysh`. The child process receives `PREFIX`, `HOME`, `PWD`, `SHELL`, `PATH`, `LD_LIBRARY_PATH`, `TMPDIR`, and `TERMINFO` values rooted in this private prefix. Ordinary command lookup uses `files/bin`; shared library lookup uses `files/lib`. The directory layout is initialized when a shell session starts.
 
 ## Native dependencies and licensing
 
