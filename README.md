@@ -29,7 +29,7 @@ Each Mysh session uses an independent native pseudo-terminal (PTY) master/slave 
 
 The PTY backend is necessary for full-screen interactive applications, but compatibility is not yet verified. Actual behavior depends on Mysh, terminal escape-sequence support, keyboard translation, terminal capabilities data (terminfo), and device testing. Vim, Nano, htop, and ncurses applications must not be described as supported until tested on an Android device.
 
-The terminal grid is currently fixed at 24 rows by 80 columns. Automatic viewport-to-PTY resizing, scrollback storage, cursor drawing, mouse reporting, clipboard integration, and broader xterm extensions remain future work.
+The terminal grid is sized from the available Compose viewport using the renderer's monospace cell metrics. The calculated row and column counts are applied to each session's libvterm grid and PTY window size (`TIOCSWINSZ`), allowing foreground terminal applications to receive the kernel-generated `SIGWINCH` notification when the available area changes. All sessions are kept at the same viewport dimensions, including inactive sessions. Scrollback storage, cursor drawing, mouse reporting, clipboard integration, and broader xterm extensions remain future work.
 
 ## Private filesystem
 
