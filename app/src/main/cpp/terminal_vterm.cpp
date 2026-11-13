@@ -3,6 +3,19 @@
 #include <vector>
 #include <deque>
 #include <algorithm>
+#include <cerrno>
+#include <csignal>
+#include <cstdlib>
+#include <cstring>
+#include <fcntl.h>
+#include <string>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <termios.h>
+#include <unistd.h>
+#include <utility>
+#include <time.h>
 
 #include "vterm.h"
 
@@ -247,20 +260,7 @@ Java_com_waizusora_terminal_NativeTerminal_nativeReadResponse(
 }
 
 
-#include <cerrno>
-#include <csignal>
-#include <cstdlib>
-#include <cstring>
-#include <fcntl.h>
-#include <string>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <termios.h>
-#include <unistd.h>
-#include <vector>
-#include <utility>
-#include <time.h>
+} // namespace
 
 extern "C" char** environ;
 
