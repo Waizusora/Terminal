@@ -331,7 +331,7 @@ private fun buildTerminalLine(cells: IntArray, row: Int, columns: Int) =
             if (width <= 0) continue
 
             var foreground = terminalColor(cells[offset + 8], Color(0xFFE2E2E2))
-            var background = terminalColor(cells[offset + 9], Color.Transparent)
+            var background = terminalColor(cells[offset + 9], Color(0xFF101114))
             val attributes = cells[offset + 7]
             if ((attributes and 16) != 0) {
                 val previousForeground = foreground
@@ -442,8 +442,10 @@ private class MyshProcess(private val filesRoot: File) {
         }
     }
 
+    @Synchronized
     fun write(value: String) = write(value.toByteArray())
 
+    @Synchronized
     fun write(value: ByteArray) {
         try {
             process?.outputStream?.apply {
