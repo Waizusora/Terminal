@@ -37,18 +37,34 @@ The application uses its private files directory as the runtime prefix:
 
 ```text
 files/
-├── bin/       # Mysh and executable commands
-├── lib/       # Shared libraries
-├── include/   # Development headers
-├── share/     # Shared data
-│   └── terminfo/ # Terminal capability database
-├── etc/       # Runtime configuration
-├── tmp/       # Temporary files
-├── var/       # Mutable runtime data
-└── home/user/ # User home directory
+├── bin/             # Mysh and primary executable commands
+├── sbin/            # Administrative commands
+├── lib/             # Shared libraries
+├── libexec/         # Private executable helpers
+├── include/         # Development headers
+├── share/           # Shared application data
+│   └── terminfo/    # Terminal capability database
+├── etc/             # Runtime configuration
+├── home/user/       # User home directory
+├── tmp/             # Temporary files
+├── var/             # Mutable runtime data
+├── run/             # Runtime state
+├── opt/             # Optional packages
+├── dev/             # Private placeholder directory; no device nodes are created
+├── proc/            # Private placeholder directory; no procfs is mounted
+└── usr/
+    ├── bin/         # Additional executable commands
+    ├── sbin/        # Additional administrative commands
+    ├── lib/         # Additional shared libraries
+    ├── libexec/     # Additional private executable helpers
+    ├── include/     # Additional development headers
+    └── share/
+        └── terminfo/ # Additional terminal capability data
 ```
 
-The Mysh executable is expected at `files/bin/mysh`. The child process receives `PREFIX`, `HOME`, `PWD`, `SHELL`, `PATH`, `LD_LIBRARY_PATH`, `TMPDIR`, and `TERMINFO` values rooted in this private prefix. Ordinary command lookup uses `files/bin`; shared library lookup uses `files/lib`. The directory layout is initialized when a shell session starts.
+The Mysh executable is expected at `files/bin/mysh`. The child process receives `PREFIX`, `HOME`, `PWD`, `SHELL`, `PATH`, `LD_LIBRARY_PATH`, `TMPDIR`, `TERMINFO`, and `TERMINFO_DIRS` values rooted in this private prefix. Command lookup searches `bin`, `sbin`, `usr/bin`, and `usr/sbin` in that order. Shared library lookup searches `lib` and `usr/lib`. Terminfo data can be supplied in either `share/terminfo` or `usr/share/terminfo`. The directory layout is initialized and validated when a shell session starts.
+
+This Unix-like hierarchy is an application-managed package prefix, not the Android root filesystem. The private `dev` and `proc` directories are placeholders only: the application does not mount device or proc filesystems there, and their presence does not expose kernel device nodes or process metadata. Runtime access remains subject to Android application sandbox permissions. Directory names alone do not provide POSIX behavior; shell semantics, executable ABI compatibility, runtime libraries, utilities, and operating-system interfaces must also be implemented and validated.
 
 ## Native dependencies and licensing
 
