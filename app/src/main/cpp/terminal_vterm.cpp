@@ -235,31 +235,50 @@ Java_com_waizusora_terminal_NativePty_nativeStart(
     }
 
     char slaveName[256] = {};
-    if (ptsname_r(master, slaveName, sizeof(slaveName)) != 0) {
-        const int saved = errno;
+    const int slaveNameError = ptsname_r(master, slaveName, sizeof(slaveName));
+    if (slaveNameError != 0) {
+        const int saved = slaveNameError;
         close(master);
         errno = saved;
         throwIoException(env, "Resolving PTY slave");
         return 0;
     }
 
-    std::string homeEnvironment = "HOME=" + home;
-    std::string prefixEnvironment = "PREFIX=" + prefix;
-    std::string pathEnvironment = "PATH=" + path;
-    std::string termEnvironment = "TERM=xterm-256color";
-    std::string colorEnvironment = "COLORTERM=truecolor";
-    std::string langEnvironment = "LANG=C.UTF-8";
+    const std::vector<std::pair<std::string, std::string>> overrides = {
+        {"HOME", home},
+        {"PREFIX", prefix},
+        {"PATH", path},
+        {"TERM", "xterm-256color"},
+        {"COLORTERM", "truecolor"},
+        {"LANG", "C.UTF-8"}
+    };
+    std::vector<std::string> environmentStrings;
+    for (char** current = environ; current != nullptr && *current != nullptr; ++current) {
+        const std::string entry(*current);
+        const size_t separator = entry.find('=');
+        if (separator == std::string::npos) continue;
+        const std::string name = entry.substr(0, separator);
+        bool replaced = false;
+        for (const auto& overrideValue : overrides) {
+            if (name == overrideValue.first) {
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) environmentStrings.push_back(entry);
+    }
+    for (const auto& overrideValue : overrides) {
+        environmentStrings.push_back(overrideValue.first + "=" + overrideValue.second);
+    }
+    std::vector<char*> environment;
+    environment.reserve(environmentStrings.size() + 1);
+    for (std::string& entry : environmentStrings) {
+        environment.push_back(entry.data());
+    }
+    environment.push_back(nullptr);
+
     char* arguments[] = {
         const_cast<char*>(shell.c_str()),
-        nullptr
-    };
-    char* environment[] = {
-        homeEnvironment.data(),
-        prefixEnvironment.data(),
-        pathEnvironment.data(),
-        termEnvironment.data(),
-        colorEnvironment.data(),
-        langEnvironment.data(),
         nullptr
     };
 
