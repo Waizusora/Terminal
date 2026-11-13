@@ -14,7 +14,7 @@ Terminal is a native Android terminal application that runs the Mysh executable 
 
 ## User interface
 
-The interface is intentionally limited to a terminal workspace. The top bar contains the title "Terminal" and a plus control for creating sessions. Sessions are identified by sequential numeric labels. The close control on each session terminates that session. A compact terminal key row provides keys that are not normally available on the Android software keyboard.
+The interface is intentionally limited to a terminal workspace. The top bar contains the title "Terminal" and a plus control for creating sessions. Sessions are identified by sequential numeric labels. The close control on each session terminates that session. A compact terminal key row provides Escape, Control, Alt, Tab, cursor navigation, Home, End, Delete, and Control shortcuts for C, D, Z, and L. Selecting a session switches the active process without terminating the other sessions.
 
 ## Private filesystem
 
@@ -43,7 +43,7 @@ The project requires JDK 17 and Android SDK 35.
 
 ## Runtime status
 
-The Android application scaffold initializes private directories and manages independent Mysh process sessions. The Mysh executable must be supplied for the target Android ABI before shell sessions can execute commands. This initial implementation reports a clear installation message when the executable is absent.
+The Android application initializes private directories and manages independent Mysh process sessions. Session output and input state are maintained independently while the process is alive. The current viewport is a plain text stream; full VT/ANSI terminal emulation is not yet implemented. The Mysh executable must be supplied for the target Android ABI before shell sessions can execute commands. The application reports a clear installation message when the executable is absent.
 
 ## Security boundary
 
