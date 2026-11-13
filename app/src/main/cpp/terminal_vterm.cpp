@@ -392,9 +392,7 @@ Java_com_waizusora_terminal_NativePty_nativeResize(
     struct winsize windowSize {};
     windowSize.ws_row = static_cast<unsigned short>(rows);
     windowSize.ws_col = static_cast<unsigned short>(columns);
-    if (ioctl(process->masterFd, TIOCSWINSZ, &windowSize) == 0) {
-        kill(-process->childPid, SIGWINCH);
-    }
+    ioctl(process->masterFd, TIOCSWINSZ, &windowSize);
 }
 
 extern "C" JNIEXPORT void JNICALL
