@@ -31,6 +31,10 @@ The PTY backend is necessary for full-screen interactive applications, but compa
 
 The terminal grid is sized from the available Compose viewport using the renderer's monospace cell metrics. The calculated row and column counts are applied to each session's libvterm grid and PTY window size (`TIOCSWINSZ`), allowing foreground terminal applications to receive the kernel-generated `SIGWINCH` notification when the available area changes. All sessions are kept at the same viewport dimensions, including inactive sessions. The primary screen's scrollback is retained through libvterm screen callbacks and rendered above the active grid in a vertically scrollable viewport. History is bounded to 2,000 lines and 200,000 cells per session; older lines are discarded when either limit is exceeded. The viewport follows new output while already positioned at the bottom, but preserves the user's position when they have scrolled into history. Cursor drawing, mouse reporting, clipboard integration, and broader xterm extensions remain future work.
 
+## Bundled Mysh runtime
+
+The Android CI workflow checks out a pinned Mysh source revision, cross-compiles standalone release executables for `arm64-v8a`, `armeabi-v7a`, and `x86_64`, and packages them as ABI-specific application assets. On first session startup, Terminal installs the matching executable into `files/bin/mysh` and marks it executable. An existing executable is preserved so a user-managed Mysh update is not overwritten on every launch. The bundled shell source revision is pinned in `.github/workflows/android.yml`; update that revision deliberately when integrating a newer Mysh release. The shell remains an independent executable and is not linked into the Android application process.
+
 ## Private filesystem
 
 The application uses its private files directory as the runtime prefix:
