@@ -43,4 +43,30 @@ internal object MyshInstaller {
             lastError
         )
     }
+
+    fun verifyExecutable(executable: File): String {
+        if (!executable.isFile || !executable.canExecute()) {
+            throw IOException("Mysh is missing or is not executable: ${executable.absolutePath}")
+        }
+
+        val process = try {
+            ProcessBuilder(executable.absolutePath, "--version")
+                .redirectErrorStream(true)
+                .start()
+        } catch (error: IOException) {
+            throw IOException("Android could not launch Mysh for this device ABI.", error)
+        }
+
+        if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
+            process.destroyForcibly()
+            process.waitFor()
+            throw IOException("Mysh version check timed out.")
+        }
+
+        val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
+        if (process.exitValue() != 0 || output.isBlank()) {
+            throw IOException("Mysh executable verification failed: ${output.ifBlank { "no version output" }}")
+        }
+        return output
+    }
 }
