@@ -9,6 +9,7 @@
 namespace {
 constexpr int kCellStride = 10;
 constexpr size_t kMaximumScrollbackLines = 2000;
+constexpr size_t kMaximumScrollbackCells = 200000;
 
 struct TerminalState {
     VTerm* terminal;
@@ -16,6 +17,7 @@ struct TerminalState {
     int rows;
     int columns;
     std::deque<std::vector<VTermScreenCell>> scrollback;
+    size_t scrollbackCellCount = 0;
 };
 
 TerminalState* stateFrom(jlong handle) {
@@ -57,7 +59,11 @@ int pushScrollbackLine(int columns, const VTermScreenCell* cells, void* user) {
     auto* state = static_cast<TerminalState*>(user);
     if (state == nullptr || cells == nullptr || columns <= 0) return 0;
     state->scrollback.emplace_back(cells, cells + columns);
-    if (state->scrollback.size() > kMaximumScrollbackLines) {
+    state->scrollbackCellCount += static_cast<size_t>(columns);
+    while (!state->scrollback.empty() &&
+           (state->scrollback.size() > kMaximumScrollbackLines ||
+            state->scrollbackCellCount > kMaximumScrollbackCells)) {
+        state->scrollbackCellCount -= state->scrollback.front().size();
         state->scrollback.pop_front();
     }
     return 1;
@@ -71,13 +77,17 @@ int popScrollbackLine(int columns, VTermScreenCell* cells, void* user) {
     const auto& line = state->scrollback.back();
     const size_t count = std::min(line.size(), static_cast<size_t>(columns));
     std::copy(line.begin(), line.begin() + count, cells);
+    state->scrollbackCellCount -= line.size();
     state->scrollback.pop_back();
     return 1;
 }
 
 int clearScrollback(void* user) {
     auto* state = static_cast<TerminalState*>(user);
-    if (state != nullptr) state->scrollback.clear();
+    if (state != nullptr) {
+        state->scrollback.clear();
+        state->scrollbackCellCount = 0;
+    }
     return 1;
 }
 
