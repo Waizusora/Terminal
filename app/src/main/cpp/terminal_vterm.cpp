@@ -32,6 +32,9 @@ struct TerminalState {
     std::deque<std::vector<VTermScreenCell>> scrollback;
     size_t scrollbackCellCount = 0;
     uint64_t scrollbackVersion = 0;
+    int cursorRow = 0;
+    int cursorColumn = 0;
+    bool cursorVisible = true;
 };
 
 TerminalState* stateFrom(jlong handle) {
@@ -108,8 +111,26 @@ int clearScrollback(void* user) {
     return 1;
 }
 
+int moveCursor(VTermPos position, VTermPos, int visible, void* user) {
+    auto* state = static_cast<TerminalState*>(user);
+    if (state == nullptr) return 0;
+    state->cursorRow = position.row;
+    state->cursorColumn = position.col;
+    state->cursorVisible = visible != 0;
+    return 1;
+}
+
+int setTerminalProperty(VTermProp property, VTermValue* value, void* user) {
+    auto* state = static_cast<TerminalState*>(user);
+    if (state == nullptr || value == nullptr) return 0;
+    if (property == VTERM_PROP_CURSORVISIBLE) {
+        state->cursorVisible = value->boolean != 0;
+    }
+    return 1;
+}
+
 const VTermScreenCallbacks kScreenCallbacks = {
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, moveCursor, setTerminalProperty, nullptr, nullptr,
     pushScrollbackLine, popScrollbackLine, clearScrollback
 };
 
@@ -173,6 +194,21 @@ Java_com_waizusora_terminal_NativeTerminal_nativeResize(
     state->rows = rows;
     state->columns = columns;
     vterm_set_size(state->terminal, rows, columns);
+}
+
+extern "C" JNIEXPORT jintArray JNICALL
+Java_com_waizusora_terminal_NativeTerminal_nativeReadCursor(
+    JNIEnv* env, jclass, jlong handle) {
+    TerminalState* state = stateFrom(handle);
+    jint values[3] = {0, 0, 0};
+    if (state != nullptr) {
+        values[0] = state->cursorRow;
+        values[1] = state->cursorColumn;
+        values[2] = state->cursorVisible ? 1 : 0;
+    }
+    jintArray result = env->NewIntArray(3);
+    if (result != nullptr) env->SetIntArrayRegion(result, 0, 3, values);
+    return result;
 }
 
 extern "C" JNIEXPORT jintArray JNICALL
