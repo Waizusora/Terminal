@@ -66,6 +66,23 @@ gradle :app:assembleDebug
 
 The project requires JDK 17, Android SDK 35, Android NDK 27.2.12479018, and CMake 3.22.1. CMake downloads the pinned libvterm source archive during native configuration, so the first build requires network access.
 
+## CI and signed releases
+
+GitHub Actions builds the debug APK for pushes to `main`, pull requests targeting `main`, and manual workflow dispatches. The debug APK is retained as a workflow artifact.
+
+Signed release builds are optional. Configure all of the following repository Actions secrets to enable them:
+
+- `ANDROID_KEYSTORE_BASE64`: the JKS/keystore file encoded as a single-line Base64 string.
+- `ANDROID_KEYSTORE_PASSWORD`: the keystore password.
+- `ANDROID_KEY_ALIAS`: the signing key alias.
+- `ANDROID_KEY_PASSWORD`: the signing key password.
+
+For example, encode a keystore locally with `base64 -w 0 release.jks` on Linux. Do not commit the keystore or its passwords to the repository. The root `.gitignore` excludes common Java keystore formats and local signing material.
+
+When all four secrets are present, the workflow decodes the keystore into the runner's temporary directory and builds `app-release.apk`. When one or more secrets are missing, signed release packaging is explicitly skipped while the debug CI build continues. A GitHub Release is published only for a pushed version tag matching `v*` and only when the signed APK was successfully built. The release receives the signed APK as an asset.
+
+Create a version tag such as `v1.0.0` to trigger release packaging. The workflow does not create a tag automatically.
+
 ## Runtime status
 
 The application manages independent Mysh processes, native PTY instances, and terminal emulator state for each session. The terminal engine parses VT control sequences and the renderer applies cell attributes and colors. The Mysh executable must be supplied for the target Android ABI before shell sessions can execute commands. The application reports a clear installation message when the executable is absent.
