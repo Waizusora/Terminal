@@ -86,14 +86,14 @@ private class TerminalSession(
     var output by mutableStateOf("")
     var input by mutableStateOf("")
     var cells by mutableStateOf(emulator.snapshot())
-    var scrollback by mutableStateOf(emulator.scrollbackSnapshot())
+    var scrollback by mutableStateOf(emulator.scrollbackSnapshot() ?: intArrayOf())
     var contentVersion by mutableStateOf(0)
 
     fun resize(rows: Int, columns: Int) {
         emulator.resize(rows, columns)
         runtime.resize(rows, columns)
         cells = emulator.snapshot()
-        scrollback = emulator.scrollbackSnapshot()
+        emulator.scrollbackSnapshot()?.let { scrollback = it }
         contentVersion++
     }
 }
@@ -124,7 +124,7 @@ private fun TerminalScreen() {
                 val response = emulator.readResponse()
                 if (response.isNotEmpty()) runtime.write(response)
                 session.cells = emulator.snapshot()
-                session.scrollback = emulator.scrollbackSnapshot()
+                emulator.scrollbackSnapshot()?.let { session.scrollback = it }
                 session.contentVersion++
             },
             onStatus = { message -> session.output += message }
