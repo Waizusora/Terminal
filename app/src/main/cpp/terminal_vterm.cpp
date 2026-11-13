@@ -161,3 +161,216 @@ Java_com_waizusora_terminal_NativeTerminal_nativeReadResponse(
     }
     return result;
 }
+
+
+#include <cerrno>
+#include <csignal>
+#include <cstdlib>
+#include <cstring>
+#include <fcntl.h>
+#include <string>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <termios.h>
+#include <unistd.h>
+
+namespace {
+struct PtyProcess {
+    int masterFd;
+    pid_t childPid;
+};
+
+PtyProcess* ptyFrom(jlong handle) {
+    return reinterpret_cast<PtyProcess*>(handle);
+}
+
+void throwIoException(JNIEnv* env, const char* operation) {
+    jclass type = env->FindClass("java/io/IOException");
+    if (type == nullptr) return;
+    std::string message(operation);
+    message += ": ";
+    message += std::strerror(errno);
+    env->ThrowNew(type, message.c_str());
+}
+
+std::string javaString(JNIEnv* env, jstring value) {
+    if (value == nullptr) return {};
+    const char* chars = env->GetStringUTFChars(value, nullptr);
+    if (chars == nullptr) return {};
+    std::string result(chars);
+    env->ReleaseStringUTFChars(value, chars);
+    return result;
+}
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_waizusora_terminal_NativePty_nativeStart(
+    JNIEnv* env, jclass, jstring shellValue, jstring workingDirectoryValue,
+    jstring homeValue, jstring prefixValue, jstring pathValue,
+    jint rows, jint columns) {
+    const std::string shell = javaString(env, shellValue);
+    const std::string workingDirectory = javaString(env, workingDirectoryValue);
+    const std::string home = javaString(env, homeValue);
+    const std::string prefix = javaString(env, prefixValue);
+    const std::string path = javaString(env, pathValue);
+    if (shell.empty() || workingDirectory.empty()) {
+        errno = EINVAL;
+        throwIoException(env, "Invalid PTY launch arguments");
+        return 0;
+    }
+
+    const int master = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC);
+    if (master < 0) {
+        throwIoException(env, "posix_openpt");
+        return 0;
+    }
+    if (grantpt(master) != 0 || unlockpt(master) != 0) {
+        const int saved = errno;
+        close(master);
+        errno = saved;
+        throwIoException(env, "Preparing PTY slave");
+        return 0;
+    }
+
+    char slaveName[256] = {};
+    if (ptsname_r(master, slaveName, sizeof(slaveName)) != 0) {
+        const int saved = errno;
+        close(master);
+        errno = saved;
+        throwIoException(env, "Resolving PTY slave");
+        return 0;
+    }
+
+    struct winsize windowSize {};
+    windowSize.ws_row = static_cast<unsigned short>(rows > 0 ? rows : 24);
+    windowSize.ws_col = static_cast<unsigned short>(columns > 0 ? columns : 80);
+    if (ioctl(master, TIOCSWINSZ, &windowSize) != 0) {
+        const int saved = errno;
+        close(master);
+        errno = saved;
+        throwIoException(env, "Setting initial PTY size");
+        return 0;
+    }
+
+    const pid_t child = fork();
+    if (child < 0) {
+        const int saved = errno;
+        close(master);
+        errno = saved;
+        throwIoException(env, "fork");
+        return 0;
+    }
+
+    if (child == 0) {
+        close(master);
+        if (setsid() < 0) _exit(126);
+
+        const int slave = open(slaveName, O_RDWR);
+        if (slave < 0) _exit(126);
+#ifdef TIOCSCTTY
+        if (ioctl(slave, TIOCSCTTY, 0) < 0) _exit(126);
+#endif
+        if (dup2(slave, STDIN_FILENO) < 0 ||
+            dup2(slave, STDOUT_FILENO) < 0 ||
+            dup2(slave, STDERR_FILENO) < 0) {
+            _exit(126);
+        }
+        if (slave > STDERR_FILENO) close(slave);
+        if (chdir(workingDirectory.c_str()) != 0) _exit(126);
+
+        setenv("HOME", home.c_str(), 1);
+        setenv("PREFIX", prefix.c_str(), 1);
+        setenv("PATH", path.c_str(), 1);
+        setenv("TERM", "xterm-256color", 1);
+        setenv("COLORTERM", "truecolor", 1);
+        execl(shell.c_str(), shell.c_str(), static_cast<char*>(nullptr));
+        _exit(127);
+    }
+
+    auto* process = new PtyProcess{master, child};
+    return reinterpret_cast<jlong>(process);
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_waizusora_terminal_NativePty_nativeRead(
+    JNIEnv* env, jclass, jlong handle, jint maximumBytes) {
+    PtyProcess* process = ptyFrom(handle);
+    if (process == nullptr || process->masterFd < 0) return env->NewByteArray(0);
+
+    const size_t capacity = static_cast<size_t>(
+        maximumBytes > 0 && maximumBytes < 65536 ? maximumBytes : 4096
+    );
+    std::vector<jbyte> buffer(capacity);
+    ssize_t count;
+    do {
+        count = read(process->masterFd, buffer.data(), buffer.size());
+    } while (count < 0 && errno == EINTR);
+
+    if (count <= 0) return env->NewByteArray(0);
+    jbyteArray result = env->NewByteArray(static_cast<jsize>(count));
+    if (result != nullptr) {
+        env->SetByteArrayRegion(result, 0, static_cast<jsize>(count), buffer.data());
+    }
+    return result;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_waizusora_terminal_NativePty_nativeWrite(
+    JNIEnv* env, jclass, jlong handle, jbyteArray input) {
+    PtyProcess* process = ptyFrom(handle);
+    if (process == nullptr || process->masterFd < 0 || input == nullptr) return;
+
+    const jsize length = env->GetArrayLength(input);
+    if (length <= 0) return;
+    jbyte* bytes = env->GetByteArrayElements(input, nullptr);
+    if (bytes == nullptr) return;
+
+    size_t written = 0;
+    while (written < static_cast<size_t>(length)) {
+        const ssize_t count = write(
+            process->masterFd,
+            bytes + written,
+            static_cast<size_t>(length) - written
+        );
+        if (count > 0) {
+            written += static_cast<size_t>(count);
+        } else if (count < 0 && errno == EINTR) {
+            continue;
+        } else {
+            break;
+        }
+    }
+    env->ReleaseByteArrayElements(input, bytes, JNI_ABORT);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_waizusora_terminal_NativePty_nativeResize(
+    JNIEnv*, jclass, jlong handle, jint rows, jint columns) {
+    PtyProcess* process = ptyFrom(handle);
+    if (process == nullptr || process->masterFd < 0 || rows <= 0 || columns <= 0) return;
+
+    struct winsize windowSize {};
+    windowSize.ws_row = static_cast<unsigned short>(rows);
+    windowSize.ws_col = static_cast<unsigned short>(columns);
+    if (ioctl(process->masterFd, TIOCSWINSZ, &windowSize) == 0) {
+        kill(-process->childPid, SIGWINCH);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_waizusora_terminal_NativePty_nativeClose(
+    JNIEnv*, jclass, jlong handle) {
+    PtyProcess* process = ptyFrom(handle);
+    if (process == nullptr) return;
+
+    kill(-process->childPid, SIGHUP);
+    int status = 0;
+    pid_t result;
+    do {
+        result = waitpid(process->childPid, &status, 0);
+    } while (result < 0 && errno == EINTR);
+
+    if (process->masterFd >= 0) close(process->masterFd);
+    delete process;
+}
