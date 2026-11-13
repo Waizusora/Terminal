@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -229,6 +230,9 @@ private fun TerminalScreen() {
                         fontSize = 14.sp
                     ),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(
+                        onSend = { active.runtime.write("\r") }
+                    ),
                     decorationBox = { inner ->
                         if (active.input.isEmpty()) {
                             Text(" ", color = Color.Gray)
