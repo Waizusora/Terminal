@@ -110,7 +110,6 @@ private class TerminalSession(
     val runtime: MyshProcess,
     val emulator: TerminalEmulator
 ) {
-    var output by mutableStateOf("")
     var input by mutableStateOf("")
     var cells by mutableStateOf(emulator.snapshot())
     var cursor by mutableStateOf(emulator.cursorSnapshot())
@@ -160,7 +159,13 @@ private fun TerminalScreen() {
                 emulator.scrollbackSnapshot()?.let { session.scrollback = it }
                 session.contentVersion++
             },
-            onStatus = { message -> session.output += message }
+            onStatus = { message ->
+                emulator.feed(message.toByteArray(Charsets.UTF_8))
+                session.cells = emulator.snapshot()
+                session.cursor = emulator.cursorSnapshot()
+                emulator.scrollbackSnapshot()?.let { session.scrollback = it }
+                session.contentVersion++
+            }
         )
     }
 
@@ -307,15 +312,6 @@ private fun TerminalScreen() {
                         .fillMaxWidth()
                         .verticalScroll(terminalScrollState)
                 ) {
-                    if (active.output.isNotEmpty()) {
-                        Text(
-                            text = active.output,
-                            color = TerminalPalette.TextPrimary,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp
-                        )
-                    }
                     val historyRows = active.scrollback.size /
                         (terminalColumns * TerminalEmulator.CELL_STRIDE)
                     repeat(historyRows) { row ->
