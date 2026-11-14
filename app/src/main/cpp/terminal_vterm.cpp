@@ -719,6 +719,23 @@ Java_com_waizusora_terminal_NativePty_nativeResize(
     }
 }
 
+extern "C" JNIEXPORT jintArray JNICALL
+Java_com_waizusora_terminal_NativePty_nativeWindowSize(
+    JNIEnv* env, jclass, jlong handle) {
+    PtyProcess* process = ptyFrom(handle);
+    jint values[2] = {0, 0};
+    if (process != nullptr && process->masterFd >= 0) {
+        struct winsize windowSize {};
+        if (ioctl(process->masterFd, TIOCGWINSZ, &windowSize) == 0) {
+            values[0] = static_cast<jint>(windowSize.ws_row);
+            values[1] = static_cast<jint>(windowSize.ws_col);
+        }
+    }
+    jintArray result = env->NewIntArray(2);
+    if (result != nullptr) env->SetIntArrayRegion(result, 0, 2, values);
+    return result;
+}
+
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_waizusora_terminal_NativePty_nativeProcessId(
     JNIEnv*, jclass, jlong handle) {
