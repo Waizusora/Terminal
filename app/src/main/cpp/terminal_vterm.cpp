@@ -511,6 +511,7 @@ Java_com_waizusora_terminal_NativePty_nativeWrite(
     if (bytes == nullptr) return;
 
     size_t written = 0;
+    int writeError = 0;
     while (written < static_cast<size_t>(length)) {
         const ssize_t count = write(
             process->masterFd,
@@ -522,10 +523,15 @@ Java_com_waizusora_terminal_NativePty_nativeWrite(
         } else if (count < 0 && errno == EINTR) {
             continue;
         } else {
+            writeError = count == 0 ? EIO : errno;
             break;
         }
     }
     env->ReleaseByteArrayElements(input, bytes, JNI_ABORT);
+    if (writeError != 0) {
+        errno = writeError;
+        throwIoException(env, written == 0 ? "write PTY master" : "write incomplete PTY input");
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -537,7 +543,9 @@ Java_com_waizusora_terminal_NativePty_nativeResize(
     struct winsize windowSize {};
     windowSize.ws_row = static_cast<unsigned short>(rows);
     windowSize.ws_col = static_cast<unsigned short>(columns);
-    ioctl(process->masterFd, TIOCSWINSZ, &windowSize);
+    if (ioctl(process->masterFd, TIOCSWINSZ, &windowSize) != 0) {
+        throwIoException(env, "ioctl TIOCSWINSZ");
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
