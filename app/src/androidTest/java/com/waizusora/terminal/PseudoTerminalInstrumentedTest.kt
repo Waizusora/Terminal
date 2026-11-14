@@ -211,11 +211,11 @@ class PseudoTerminalInstrumentedTest {
         try {
             firstSession.start()
             firstSession.write(
-                "echo PTY_LIFECYCLE_FIRST_$$\\n".toByteArray(Charsets.UTF_8)
+                "echo PTY_LIFECYCLE_FIRST_$$\n".toByteArray(Charsets.UTF_8)
             )
             val firstOutput = awaitOutputMatching(
                 firstSession,
-                Regex("PTY_LIFECYCLE_FIRST_(\\\\d+)")
+                Regex("PTY_LIFECYCLE_FIRST_(\\d+)")
             )
             val childPid = Regex("PTY_LIFECYCLE_FIRST_(\\d+)")
                 .find(firstOutput)
