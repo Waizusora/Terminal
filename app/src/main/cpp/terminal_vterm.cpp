@@ -399,6 +399,14 @@ Java_com_waizusora_terminal_NativePty_nativeStart(
         throwIoException(env, "posix_openpt");
         return 0;
     }
+    const int masterFlags = fcntl(master, F_GETFL);
+    if (masterFlags < 0 || fcntl(master, F_SETFL, masterFlags | O_NONBLOCK) != 0) {
+        const int saved = errno;
+        close(master);
+        errno = saved;
+        throwIoException(env, "Configuring non-blocking PTY master");
+        return 0;
+    }
     if (grantpt(master) != 0 || unlockpt(master) != 0) {
         const int saved = errno;
         close(master);
@@ -606,7 +614,10 @@ Java_com_waizusora_terminal_NativePty_nativeRead(
         count = read(process->masterFd, buffer.data(), buffer.size());
     } while (count < 0 && errno == EINTR);
 
-    if (count < 0 && (errno == EIO || errno == EAGAIN || errno == EWOULDBLOCK)) {
+    if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+        return nullptr;
+    }
+    if (count < 0 && errno == EIO) {
         return env->NewByteArray(0);
     }
     if (count <= 0) return env->NewByteArray(0);
@@ -630,7 +641,45 @@ Java_com_waizusora_terminal_NativePty_nativeWrite(
 
     size_t written = 0;
     int writeError = 0;
-    while (written < static_cast<size_t>(length)) {
+    struct timespec deadline {};
+    if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
+        writeError = errno;
+    } else {
+        deadline.tv_sec += 10;
+    }
+
+    while (writeError == 0 && written < static_cast<size_t>(length)) {
+        struct timespec now {};
+        if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) {
+            writeError = errno;
+            break;
+        }
+        const int64_t remainingNanoseconds =
+            static_cast<int64_t>(deadline.tv_sec - now.tv_sec) * 1000000000LL +
+            static_cast<int64_t>(deadline.tv_nsec - now.tv_nsec);
+        if (remainingNanoseconds <= 0) {
+            writeError = ETIMEDOUT;
+            break;
+        }
+
+        pollfd descriptor {};
+        descriptor.fd = process->masterFd;
+        descriptor.events = POLLOUT | POLLHUP | POLLERR;
+        const int timeout = static_cast<int>(
+            std::min<int64_t>(100, (remainingNanoseconds + 999999LL) / 1000000LL)
+        );
+        const int ready = poll(&descriptor, 1, timeout);
+        if (ready < 0) {
+            if (errno == EINTR) continue;
+            writeError = errno;
+            break;
+        }
+        if (ready == 0) continue;
+        if ((descriptor.revents & POLLOUT) == 0) {
+            writeError = EIO;
+            break;
+        }
+
         const ssize_t count = write(
             process->masterFd,
             bytes + written,
@@ -638,17 +687,19 @@ Java_com_waizusora_terminal_NativePty_nativeWrite(
         );
         if (count > 0) {
             written += static_cast<size_t>(count);
-        } else if (count < 0 && errno == EINTR) {
+        } else if (count < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)) {
             continue;
         } else {
             writeError = count == 0 ? EIO : errno;
-            break;
         }
     }
     env->ReleaseByteArrayElements(input, bytes, JNI_ABORT);
     if (writeError != 0) {
         errno = writeError;
-        throwIoException(env, written == 0 ? "write PTY master" : "write incomplete PTY input");
+        throwIoException(
+            env,
+            written == 0 ? "write PTY master" : "write incomplete PTY input"
+        );
     }
 }
 
