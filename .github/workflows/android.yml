@@ -35,13 +35,29 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4.0.4
-        with:
-          packages: platform-tools platforms;android-35 build-tools;35.0.0
+      - name: Set up Android CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://dl.google.com/android/cli/latest/linux_x86_64/install.sh | bash
+          source "$HOME/.bashrc" 2>/dev/null || true
+          ANDROID_CLI="$(command -v android || find "$HOME" -type f -name android -perm -u+x -print -quit)"
+          test -n "$ANDROID_CLI"
+          echo "$(dirname "$ANDROID_CLI")" >> "$GITHUB_PATH"
+          "$ANDROID_CLI" --version
 
-      - name: Install Android NDK and CMake
-        run: sdkmanager "ndk;27.2.12479018" "cmake;3.22.1"
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK_ROOT"
+          android --sdk="$SDK_ROOT" sdk install \
+            platform-tools \
+            platforms/android-35 \
+            build-tools/35.0.0 \
+            ndk/27.2.12479018 \
+            cmake/3.22.1
 
       - name: Check out Mysh source
         uses: actions/checkout@v7
@@ -134,12 +150,12 @@ jobs:
 
       - name: Upload signed release APK
         if: steps.release.outputs.built == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: terminal-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
 
   publish-release:
     name: Publish signed APK to GitHub Release
