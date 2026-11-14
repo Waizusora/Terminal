@@ -237,7 +237,7 @@ private fun TerminalScreen() {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    sessions.forEach { session ->
+                    sessions.forEachIndexed { index, session ->
                         Surface(
                             onClick = { activeId = session.id },
                             modifier = Modifier
@@ -257,7 +257,7 @@ private fun TerminalScreen() {
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = session.id.toString(),
+                                        text = (index + 1).toString(),
                                         color = TerminalPalette.TextPrimary,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium
