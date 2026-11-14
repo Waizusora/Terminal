@@ -98,7 +98,7 @@ Build the debug APK with:
 gradle :app:assembleDebug
 ```
 
-The project uses Android Gradle Plugin 8.11.1, Kotlin 2.2.21, and Gradle 8.13. It requires JDK 17, Android SDK 35, Android NDK 27.2.12479018, and CMake 3.22.1. CMake downloads the pinned libvterm source archive during native configuration, so the first build requires network access.
+The project uses Android Gradle Plugin 8.13.2, Kotlin 2.3.10, and Gradle 8.13. It requires JDK 17, Android SDK 35, Android NDK 27.2.12479018, and CMake 3.22.1. CMake downloads the pinned libvterm source archive during native configuration, so the first build requires network access.
 
 ## CI and signed releases
 
