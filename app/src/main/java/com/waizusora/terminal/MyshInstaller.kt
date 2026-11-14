@@ -54,7 +54,17 @@ internal object MyshInstaller {
                 .redirectErrorStream(true)
                 .start()
         } catch (error: IOException) {
-            throw IOException("Android could not launch Mysh for this device ABI.", error)
+            val detail = generateSequence(error as Throwable?) { it.cause }
+                .mapNotNull { cause ->
+                    cause.message?.takeIf(String::isNotBlank)
+                        ?: cause.javaClass.simpleName.takeIf(String::isNotBlank)
+                }
+                .distinct()
+                .joinToString(": ")
+            throw IOException(
+                "Android could not launch Mysh at ${executable.absolutePath}: ${detail.ifBlank { "unknown execution error" }}",
+                error
+            )
         }
 
         if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
