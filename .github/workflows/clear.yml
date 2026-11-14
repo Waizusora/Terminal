@@ -1,4 +1,4 @@
-name: Clear Workflow Runs (Sisa 2)
+name: Clear Workflow Runs
 on:
   workflow_dispatch: # Run Manually Actions
   schedule:
