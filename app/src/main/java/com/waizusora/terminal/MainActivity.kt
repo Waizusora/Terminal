@@ -197,6 +197,7 @@ private fun TerminalScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF101114))
+            .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.ime)
     ) {
         Row(
@@ -359,10 +360,6 @@ private fun TerminalScreen() {
                         inner()
                     }
                 )
-                TerminalKey(label = "↵", onClick = {
-                    active.runtime.write("\r")
-                    active.input = ""
-                })
             }
             Row(
                 modifier = Modifier
@@ -371,7 +368,7 @@ private fun TerminalScreen() {
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
-                listOf("ESC", "CTRL", "ALT", "TAB", "↑", "↓", "←", "→", "HOME", "END", "DEL", "C", "D", "Z", "L").forEach { key ->
+                listOf("ESC", "↵", "CTRL", "ALT", "TAB", "↑", "↓", "←", "→", "HOME", "END", "DEL", "C", "D", "Z", "L").forEach { key ->
                     TerminalKey(
                         label = key,
                         emphasized = key == "CTRL" && controlArmed,
@@ -379,6 +376,7 @@ private fun TerminalScreen() {
                             when (key) {
                                 "CTRL" -> controlArmed = !controlArmed
                                 "ESC" -> active.runtime.write("\u001B")
+                                "↵" -> active.runtime.write("\r")
                                 "ALT" -> active.runtime.write("\u001B")
                                 "TAB" -> active.runtime.write("\t")
                                 "↑" -> active.runtime.write("\u001B[A")
