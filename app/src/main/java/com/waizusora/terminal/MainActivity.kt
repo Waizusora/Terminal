@@ -74,9 +74,9 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = darkColorScheme(
                 background = Color(0xFF101114),
                 surface = Color(0xFF101114),
-                primary = Color(0xFFE6E6E6),
-                onBackground = Color(0xFFE6E6E6),
-                onSurface = Color(0xFFE6E6E6)
+                primary = Color(0xFF8AB4F8),
+                onBackground = Color(0xFFE6E8ED),
+                onSurface = Color(0xFFE6E8ED)
             )) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -233,7 +233,7 @@ private fun TerminalScreen() {
                                 ) {
                                     Text(
                                         text = session.id.toString(),
-                                        color = Color(0xFFEAEAEA),
+                                        color = Color(0xFFE6E8ED),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -241,7 +241,7 @@ private fun TerminalScreen() {
                                 Surface(
                                     onClick = { pendingCloseId = session.id },
                                     modifier = Modifier.size(30.dp),
-                                    color = Color(0xFF41454D),
+                                    color = Color(0xFF29242A),
                                     shape = CircleShape
                                 ) {
                                     Box(
@@ -250,7 +250,7 @@ private fun TerminalScreen() {
                                     ) {
                                         Text(
                                             text = "×",
-                                            color = Color(0xFFD9DCE2),
+                                            color = Color(0xFFE57373),
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Normal
                                         )
@@ -294,7 +294,7 @@ private fun TerminalScreen() {
                     if (active.output.isNotEmpty()) {
                         Text(
                             text = active.output,
-                            color = Color(0xFFE2E2E2),
+                            color = Color(0xFFE6E8ED),
                             fontFamily = FontFamily.Monospace,
                             fontSize = 13.sp,
                             lineHeight = 19.sp
@@ -309,7 +309,7 @@ private fun TerminalScreen() {
                                 row,
                                 terminalColumns
                             ),
-                            color = Color(0xFFE2E2E2),
+                            color = Color(0xFFE6E8ED),
                             fontFamily = FontFamily.Monospace,
                             fontSize = 13.sp,
                             lineHeight = 19.sp,
@@ -345,7 +345,7 @@ private fun TerminalScreen() {
                         .padding(start = 8.dp),
                     singleLine = true,
                     textStyle = TextStyle(
-                        color = Color.White,
+                        color = Color(0xFFE6E8ED),
                         fontFamily = FontFamily.Monospace,
                         fontSize = 14.sp
                     ),
@@ -426,9 +426,9 @@ private fun TerminalScreen() {
                     Text("Cancel")
                 }
             },
-            containerColor = Color(0xFF202329),
-            titleContentColor = Color(0xFFEAEAEA),
-            textContentColor = Color(0xFFBFC3CC)
+            containerColor = Color(0xFF191C22),
+            titleContentColor = Color(0xFFE6E8ED),
+            textContentColor = Color(0xFF9299A5)
         )
     }
 }
@@ -441,12 +441,12 @@ private fun TerminalKey(
 ) {
     Surface(
         onClick = onClick,
-        color = if (emphasized) Color(0xFF454951) else Color(0xFF24262C),
+        color = if (emphasized) Color(0xFF8AB4F8) else Color(0xFF20242C),
         shape = MaterialTheme.shapes.small
     ) {
         Text(
             text = label,
-            color = Color(0xFFECECEC),
+            color = if (emphasized) Color(0xFF101114) else Color(0xFFE6E8ED),
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp)
@@ -465,7 +465,7 @@ private fun TerminalViewport(cells: IntArray, rows: Int, columns: Int, cursor: I
         repeat(rows) { row ->
             Text(
                 text = buildTerminalLine(cells, row, columns),
-                color = Color(0xFFE2E2E2),
+                color = Color(0xFFE6E8ED),
                 fontFamily = FontFamily.Monospace,
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
@@ -478,7 +478,7 @@ private fun TerminalViewport(cells: IntArray, rows: Int, columns: Int, cursor: I
             modifier = Modifier
                 .offset(x = cursorX, y = cursorY)
                 .size(width = 1.5.dp, height = cursorHeight)
-                .background(Color(0xFFECECEC))
+                .background(Color(0xFF8AB4F8))
         )
     }
     }
@@ -492,7 +492,7 @@ private fun buildTerminalLine(cells: IntArray, row: Int, columns: Int) =
             val width = cells[offset + 6]
             if (width <= 0) continue
 
-            var foreground = terminalColor(cells[offset + 8], Color(0xFFE2E2E2))
+            var foreground = terminalColor(cells[offset + 8], Color(0xFFE6E8ED))
             var background = terminalColor(cells[offset + 9], Color(0xFF101114))
             val attributes = cells[offset + 7]
             if ((attributes and 16) != 0) {
