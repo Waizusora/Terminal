@@ -97,19 +97,19 @@ jobs:
             echo "All release-signing secrets are configured."
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Release signing is not fully configured. The signed release build and GitHub Release upload will be skipped."
+            echo "::notice::Optional release signing is not configured. Signed release packaging will be skipped."
           fi
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace --warning-mode=all
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: terminal-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
 
       - name: Decode Android signing keystore
         if: steps.signing.outputs.ready == 'true'
@@ -150,7 +150,7 @@ jobs:
       contents: write
     steps:
       - name: Download signed APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: terminal-release-apk
           path: release
