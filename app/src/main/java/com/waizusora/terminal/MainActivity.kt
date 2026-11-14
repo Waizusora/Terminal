@@ -659,7 +659,7 @@ private class MyshProcess(
                 }
 
                 while (!closed) {
-                    val bytes = sessionTerminal.read()
+                    val bytes = sessionTerminal.read() ?: continue
                     if (bytes.isEmpty()) break
                     onOutput(bytes)
                 }
