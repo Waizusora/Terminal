@@ -16,6 +16,13 @@ internal object NativeTerminal {
     @JvmStatic external fun nativeReadResponse(handle: Long): ByteArray
 }
 
+internal data class TerminalFrame(
+    val cells: IntArray,
+    val cursor: IntArray,
+    val scrollback: IntArray?,
+    val response: ByteArray
+)
+
 internal class TerminalEmulator(
     rows: Int = 24,
     columns: Int = 80
@@ -42,6 +49,43 @@ internal class TerminalEmulator(
     fun readResponse(): ByteArray {
         return if (handle != 0L) NativeTerminal.nativeReadResponse(handle) else byteArrayOf()
     }
+
+    @Synchronized
+    fun feedAndSnapshot(bytes: ByteArray): TerminalFrame {
+        if (handle != 0L && bytes.isNotEmpty()) {
+            NativeTerminal.nativeFeed(handle, bytes)
+        }
+        val response = if (handle != 0L) {
+            NativeTerminal.nativeReadResponse(handle)
+        } else {
+            byteArrayOf()
+        }
+        return createFrame(response)
+    }
+
+    @Synchronized
+    fun resizeAndSnapshot(newRows: Int, newColumns: Int): TerminalFrame {
+        if (handle != 0L && newRows > 0 && newColumns > 0 &&
+            (rows != newRows || columns != newColumns)
+        ) {
+            NativeTerminal.nativeResize(handle, newRows, newColumns)
+            rows = newRows
+            columns = newColumns
+        }
+        return createFrame(byteArrayOf())
+    }
+
+    @Synchronized
+    fun currentFrame(): TerminalFrame = createFrame(byteArrayOf())
+
+    private fun createFrame(response: ByteArray): TerminalFrame = TerminalFrame(
+        cells = if (handle != 0L) NativeTerminal.nativeReadCells(handle)
+            else IntArray(rows * columns * CELL_STRIDE),
+        cursor = if (handle != 0L) NativeTerminal.nativeReadCursor(handle)
+            else intArrayOf(0, 0, 0),
+        scrollback = scrollbackSnapshot(),
+        response = response
+    )
 
     @Synchronized
     fun resize(newRows: Int, newColumns: Int) {
