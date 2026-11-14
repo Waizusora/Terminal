@@ -100,6 +100,15 @@ jobs:
           test -x app/src/main/jniLibs/arm64-v8a/libmysh.so
           test -x app/src/main/jniLibs/x86_64/libmysh.so
 
+      - name: Verify PTY on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: gradle :app:connectedDebugAndroidTest --stacktrace --warning-mode=all
+
       - name: Detect release signing configuration
         id: signing
         env:
