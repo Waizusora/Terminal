@@ -80,7 +80,7 @@ jobs:
           targets: aarch64-linux-android,x86_64-linux-android
 
       - name: Run Mysh host tests
-        run: cargo test --manifest-path .build/Mysh/Cargo.toml --all-targets
+        run: cargo test --manifest-path .build/Mysh/Cargo.toml --workspace --all-targets
 
       - name: Configure Android NDK compiler tools
         shell: bash
