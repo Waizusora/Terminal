@@ -682,6 +682,7 @@ private class MyshProcess(
                     }
                 }
 
+                MyshInstaller.installRuntimeCommands(nativeLibraryDirectory, bin)
                 val shell = MyshInstaller.resolveExecutable(nativeLibraryDirectory)
                 val shellVersion = MyshInstaller.verifyExecutable(shell)
                 onStatus("$shellVersion\n")
