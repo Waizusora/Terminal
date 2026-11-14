@@ -719,6 +719,13 @@ Java_com_waizusora_terminal_NativePty_nativeResize(
     }
 }
 
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_waizusora_terminal_NativePty_nativeProcessId(
+    JNIEnv*, jclass, jlong handle) {
+    PtyProcess* process = ptyFrom(handle);
+    return process == nullptr ? 0 : static_cast<jlong>(process->childPid);
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_waizusora_terminal_NativePty_nativeClose(
     JNIEnv*, jclass, jlong handle) {
