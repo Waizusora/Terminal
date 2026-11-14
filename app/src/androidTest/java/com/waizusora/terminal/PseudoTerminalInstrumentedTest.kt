@@ -65,6 +65,23 @@ class PseudoTerminalInstrumentedTest {
                     output.toString(Charsets.UTF_8.name()),
                 receivedMarker
             )
+
+            output.reset()
+            terminal.write("mypk --version\\n".toByteArray(Charsets.UTF_8))
+            val mypkDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
+            var receivedMypkVersion = false
+            while (System.nanoTime() < mypkDeadline && !receivedMypkVersion) {
+                val bytes = terminal.read() ?: continue
+                if (bytes.isEmpty()) break
+                output.write(bytes)
+                receivedMypkVersion = output.toString(Charsets.UTF_8.name())
+                    .contains("mypk 0.1.0")
+            }
+            assertTrue(
+                "PTY did not execute the bundled MYPK binary. Received: " +
+                    output.toString(Charsets.UTF_8.name()),
+                receivedMypkVersion
+            )
         } finally {
             terminal.close()
         }
