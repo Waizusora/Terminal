@@ -229,7 +229,8 @@ class PseudoTerminalInstrumentedTest {
             terminal.write(
                 (
                     "i=0; while [ \"\$i\" -lt 1000 ]; do printf '%s' '$chunk'; " +
-                        "i=\$((i + 1)); done; printf '\\nPTY_OUTPUT_BURST_DONE\\n'\n"
+                        "i=\$((i + 1)); done; printf 'PTY_OUTPUT_'; " +
+                        "printf 'BURST_DONE\\n'\n"
                     ).toByteArray(Charsets.UTF_8)
             )
             val output = awaitOutputEventually(terminal, "PTY_OUTPUT_BURST_DONE")
