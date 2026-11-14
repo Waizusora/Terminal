@@ -135,3 +135,6 @@ The native PTY reader uses a bounded poll interval so session shutdown can inter
 
 
 MyshProcess serializes startup scheduling and shutdown state transitions on the same monitor. Closing a session is idempotent, prevents a later startup from being queued, and atomically detaches the active PTY before asynchronous native cleanup.
+
+
+PTY input writes now report failed or incomplete writes to Kotlin instead of silently discarding the unwritten remainder. PTY resize reports TIOCSWINSZ failures through IOException, allowing the session layer to surface native I/O faults.
