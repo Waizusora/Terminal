@@ -102,7 +102,7 @@ The project requires JDK 17, Android SDK 35, Android NDK 27.2.12479018, and CMak
 
 ## CI and signed releases
 
-GitHub Actions builds the debug APK for pushes to `main`, pull requests targeting `main`, and manual workflow dispatches. The debug APK is retained as a workflow artifact.
+GitHub Actions builds the debug APK for pushes to `main`, pull requests targeting `main`, and manual workflow dispatches. The workflow installs Google's Android CLI and provisions the pinned Android platform, build-tools, NDK, and CMake packages through `android sdk install`, avoiding the deprecated `sdkmanager` interface. The debug APK is retained as a workflow artifact.
 
 Signed release builds are optional. Configure all of the following repository Actions secrets to enable them:
 
