@@ -29,6 +29,10 @@ class PseudoTerminalInstrumentedTest {
         val shell = MyshInstaller.resolveExecutable(
             File(context.applicationInfo.nativeLibraryDir)
         )
+        MyshInstaller.installRuntimeCommands(
+            File(context.applicationInfo.nativeLibraryDir),
+            bin
+        )
         val terminal = PseudoTerminal(
             shell = shell.absolutePath,
             workingDirectory = home.absolutePath,
