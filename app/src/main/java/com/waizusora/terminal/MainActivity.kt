@@ -591,10 +591,12 @@ private class MyshProcess(
     @Volatile
     private var closed = false
 
+    @Synchronized
     fun start(
         onOutput: (ByteArray) -> Unit,
         onStatus: (String) -> Unit
     ) {
+        if (closed) return
         executor.execute {
             var sessionTerminal: PseudoTerminal? = null
             try {
@@ -697,9 +699,11 @@ private class MyshProcess(
     }
 
     fun close() {
-        closed = true
-        val activeTerminal = terminal
-        terminal = null
+        val activeTerminal = synchronized(this) {
+            if (closed) return
+            closed = true
+            terminal.also { terminal = null }
+        }
         executor.shutdownNow()
         if (activeTerminal != null) {
             Thread(
