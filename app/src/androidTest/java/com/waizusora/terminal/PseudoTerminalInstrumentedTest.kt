@@ -211,7 +211,7 @@ class PseudoTerminalInstrumentedTest {
         try {
             firstSession.start()
             firstSession.write(
-                "echo PTY_LIFECYCLE_FIRST\\n".toByteArray(Charsets.UTF_8)
+                "echo PTY_LIFECYCLE_FIRST\n".toByteArray(Charsets.UTF_8)
             )
             val firstOutput = awaitOutput(firstSession, "PTY_LIFECYCLE_FIRST")
             assertTrue(
@@ -232,12 +232,13 @@ class PseudoTerminalInstrumentedTest {
             )
             firstSession.close()
 
-            secondSession = newSession()
-            secondSession.start()
-            secondSession.write(
-                "echo PTY_LIFECYCLE_SECOND\\n".toByteArray(Charsets.UTF_8)
+            val restartedSession = newSession()
+            secondSession = restartedSession
+            restartedSession.start()
+            restartedSession.write(
+                "echo PTY_LIFECYCLE_SECOND\n".toByteArray(Charsets.UTF_8)
             )
-            val secondOutput = awaitOutput(secondSession, "PTY_LIFECYCLE_SECOND")
+            val secondOutput = awaitOutput(restartedSession, "PTY_LIFECYCLE_SECOND")
             assertTrue(
                 "A new PTY session failed after the previous session closed: $secondOutput",
                 secondOutput.contains("PTY_LIFECYCLE_SECOND")
