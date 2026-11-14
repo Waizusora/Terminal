@@ -672,22 +672,49 @@ Java_com_waizusora_terminal_NativePty_nativeClose(
     PtyProcess* process = ptyFrom(handle);
     if (process == nullptr) return;
 
-    kill(-process->childPid, SIGHUP);
-    kill(process->childPid, SIGHUP);
+    const pid_t childPid = process->childPid;
+    kill(-childPid, SIGHUP);
+    kill(childPid, SIGHUP);
 
     int status = 0;
-    pid_t result = 0;
+    bool childReaped = false;
+    bool waitFailed = false;
     const struct timespec interval = {0, 10000000};
+
     for (int attempt = 0; attempt < 50; ++attempt) {
-        result = waitpid(process->childPid, &status, WNOHANG);
-        if (result == process->childPid || (result < 0 && errno == ECHILD)) break;
-        nanosleep(&interval, nullptr);
+        if (!childReaped) {
+            pid_t result;
+            do {
+                result = waitpid(childPid, &status, WNOHANG);
+            } while (result < 0 && errno == EINTR);
+
+            if (result == childPid || (result < 0 && errno == ECHILD)) {
+                childReaped = true;
+            } else if (result < 0) {
+                waitFailed = true;
+                break;
+            }
+        }
+
+        errno = 0;
+        const int groupResult = kill(-childPid, 0);
+        const bool groupExists = groupResult == 0 || errno == EPERM;
+        if (childReaped && !groupExists) break;
+
+        struct timespec remaining = interval;
+        while (nanosleep(&remaining, &remaining) != 0 && errno == EINTR) {}
     }
-    if (result != process->childPid && !(result < 0 && errno == ECHILD)) {
-        kill(-process->childPid, SIGKILL);
-        kill(process->childPid, SIGKILL);
+
+    errno = 0;
+    const int groupResult = kill(-childPid, 0);
+    if (groupResult == 0 || errno == EPERM || waitFailed) {
+        kill(-childPid, SIGKILL);
+    }
+    if (!childReaped) {
+        kill(childPid, SIGKILL);
+        pid_t result;
         do {
-            result = waitpid(process->childPid, &status, 0);
+            result = waitpid(childPid, &status, 0);
         } while (result < 0 && errno == EINTR);
     }
 
