@@ -211,9 +211,12 @@ class PseudoTerminalInstrumentedTest {
         try {
             firstSession.start()
             firstSession.write(
-                "echo PTY_LIFECYCLE_FIRST_\$\$\n".toByteArray(Charsets.UTF_8)
+                "echo PTY_LIFECYCLE_FIRST_$$\\n".toByteArray(Charsets.UTF_8)
             )
-            val firstOutput = awaitOutput(firstSession, "PTY_LIFECYCLE_FIRST_")
+            val firstOutput = awaitOutputMatching(
+                firstSession,
+                Regex("PTY_LIFECYCLE_FIRST_(\\\\d+)")
+            )
             val childPid = Regex("PTY_LIFECYCLE_FIRST_(\\d+)")
                 .find(firstOutput)
                 ?.groupValues
@@ -266,6 +269,19 @@ class PseudoTerminalInstrumentedTest {
             firstSession.close()
             secondSession?.close()
         }
+    }
+
+    private fun awaitOutputMatching(terminal: PseudoTerminal, pattern: Regex): String {
+        val output = ByteArrayOutputStream()
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
+        while (System.nanoTime() < deadline) {
+            val bytes = terminal.read() ?: continue
+            if (bytes.isEmpty()) break
+            output.write(bytes)
+            val currentOutput = output.toString(Charsets.UTF_8.name())
+            if (pattern.containsMatchIn(currentOutput)) return currentOutput
+        }
+        return output.toString(Charsets.UTF_8.name())
     }
 
     private fun awaitOutput(terminal: PseudoTerminal, marker: String): String {
