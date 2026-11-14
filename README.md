@@ -15,7 +15,7 @@ Terminal is a native Android terminal application that runs the Mysh executable 
 
 ## User interface
 
-The interface is intentionally limited to a terminal workspace. The top bar contains the title "Terminal" and a plus control for creating sessions. Sessions are identified by sequential numeric labels. The close control on each session terminates that session. A compact terminal key row provides Escape, Control, Alt, Tab, cursor navigation, Home, End, Delete, and Control shortcuts for C, D, Z, and L. Selecting a session switches the active process without terminating the other sessions.
+The interface is focused on the terminal workspace. The top bar does not display an application title; it places sequentially numbered session tabs from the left and keeps the plus control at the right edge. The session strip scrolls horizontally when its tabs exceed the available width, while the plus control remains fixed. Each tab includes a close control that terminates only that session. Selecting a session switches the active process without terminating the other sessions. Tapping the terminal viewport requests input focus and opens the Android software keyboard. A compact terminal key row provides Escape, Control, Alt, Tab, cursor navigation, Home, End, Delete, and Control shortcuts for C, D, Z, and L.
 
 ## Terminal emulation
 
