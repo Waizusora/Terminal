@@ -53,7 +53,7 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+          targets: aarch64-linux-android,x86_64-linux-android
 
       - name: Run Mysh host tests
         run: cargo test --manifest-path .build/Mysh/Cargo.toml --locked --all-targets
@@ -64,15 +64,11 @@ jobs:
           set -euo pipefail
           NDK_TOOLCHAIN="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
           NATIVE_LIB_ROOT="app/src/main/jniLibs"
-          mkdir -p "$NATIVE_LIB_ROOT/arm64-v8a" "$NATIVE_LIB_ROOT/armeabi-v7a" "$NATIVE_LIB_ROOT/x86_64"
+          mkdir -p "$NATIVE_LIB_ROOT/arm64-v8a" "$NATIVE_LIB_ROOT/x86_64"
 
           CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$NDK_TOOLCHAIN/aarch64-linux-android21-clang" \
             cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --target aarch64-linux-android
           install -m 755 .build/Mysh/target/aarch64-linux-android/release/mysh "$NATIVE_LIB_ROOT/arm64-v8a/libmysh.so"
-
-          CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$NDK_TOOLCHAIN/armv7a-linux-androideabi21-clang" \
-            cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --target armv7-linux-androideabi
-          install -m 755 .build/Mysh/target/armv7-linux-androideabi/release/mysh "$NATIVE_LIB_ROOT/armeabi-v7a/libmysh.so"
 
           CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$NDK_TOOLCHAIN/x86_64-linux-android21-clang" \
             cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --target x86_64-linux-android
@@ -83,10 +79,8 @@ jobs:
         run: |
           set -euo pipefail
           readelf -h app/src/main/jniLibs/arm64-v8a/libmysh.so | grep -F "Machine:" | grep -F "AArch64"
-          readelf -h app/src/main/jniLibs/armeabi-v7a/libmysh.so | grep -F "Machine:" | grep -F "ARM"
           readelf -h app/src/main/jniLibs/x86_64/libmysh.so | grep -F "Machine:" | grep -F "Advanced Micro Devices X86-64"
           test -x app/src/main/jniLibs/arm64-v8a/libmysh.so
-          test -x app/src/main/jniLibs/armeabi-v7a/libmysh.so
           test -x app/src/main/jniLibs/x86_64/libmysh.so
 
       - name: Detect release signing configuration
