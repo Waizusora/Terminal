@@ -52,6 +52,7 @@ internal object MyshInstaller {
         return output
     }
 
+    @Synchronized
     fun installRuntimeCommands(nativeLibraryDirectory: File, binDirectory: File) {
         installCommandLink(
             File(nativeLibraryDirectory, "libcoreutils.so"),
