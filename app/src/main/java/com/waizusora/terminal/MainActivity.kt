@@ -63,7 +63,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executors
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.collect
 
 private object TerminalPalette {
@@ -583,8 +586,22 @@ private class MyshProcess(
     @Volatile private var rows = initialRows
     @Volatile private var columns = initialColumns
     private val executor = Executors.newSingleThreadExecutor()
-    private val writerExecutor = Executors.newSingleThreadExecutor()
+    private val writerExecutor = ThreadPoolExecutor(
+        1,
+        1,
+        0L,
+        TimeUnit.MILLISECONDS,
+        ArrayBlockingQueue(64),
+        { task -> Thread(task, "Mysh-PTY-writer") },
+        ThreadPoolExecutor.AbortPolicy()
+    )
     private val pendingInput = ByteArrayOutputStream()
+    private var queuedInputBytes = 0L
+
+    private companion object {
+        const val MAX_PENDING_INPUT_BYTES = 64 * 1024
+        const val MAX_QUEUED_INPUT_BYTES = 1024 * 1024
+    }
 
     @Volatile
     private var statusCallback: ((String) -> Unit)? = null
@@ -690,27 +707,39 @@ private class MyshProcess(
         val activeTerminal = terminal
         if (activeTerminal != null) {
             enqueueWrite(activeTerminal, value.copyOf())
-        } else {
+        } else if (value.size <= MAX_PENDING_INPUT_BYTES - pendingInput.size()) {
             pendingInput.write(value)
+        } else {
+            statusCallback?.invoke("PTY startup input limit exceeded; input was rejected.\n")
         }
     }
 
     private fun enqueueWrite(target: PseudoTerminal, input: ByteArray) {
         if (closed || input.isEmpty()) return
+        if (input.size > MAX_QUEUED_INPUT_BYTES - queuedInputBytes) {
+            statusCallback?.invoke("PTY input queue limit exceeded; input was rejected.\n")
+            return
+        }
+
+        queuedInputBytes += input.size
         try {
             writerExecutor.execute {
-                if (closed) return@execute
                 try {
-                    target.write(input)
+                    if (!closed) target.write(input)
                 } catch (error: Exception) {
                     if (!closed) {
                         statusCallback?.invoke(
                             "PTY input failed: ${error.message}\n"
                         )
                     }
+                } finally {
+                    synchronized(this) {
+                        queuedInputBytes -= input.size
+                    }
                 }
             }
         } catch (_: java.util.concurrent.RejectedExecutionException) {
+            queuedInputBytes -= input.size
             if (!closed) {
                 statusCallback?.invoke("PTY input queue is unavailable.\n")
             }
