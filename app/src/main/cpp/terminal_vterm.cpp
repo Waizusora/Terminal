@@ -320,6 +320,54 @@ void throwIoException(JNIEnv* env, const char* operation) {
     env->ThrowNew(type, message.c_str());
 }
 
+struct ChildStartupError {
+    int stage;
+    int error;
+};
+
+enum ChildStartupStage {
+    kChildSetSession = 1,
+    kChildOpenSlave,
+    kChildSetControllingTerminal,
+    kChildDuplicateDescriptors,
+    kChildChangeDirectory,
+    kChildExecute
+};
+
+void reportChildStartupError(int fd, int stage) {
+    const ChildStartupError failure = {stage, errno};
+    const char* bytes = reinterpret_cast<const char*>(&failure);
+    size_t remaining = sizeof(failure);
+    while (remaining > 0) {
+        const ssize_t count = write(fd, bytes + sizeof(failure) - remaining, remaining);
+        if (count > 0) {
+            remaining -= static_cast<size_t>(count);
+        } else if (count < 0 && errno == EINTR) {
+            continue;
+        } else {
+            break;
+        }
+    }
+    _exit(stage == kChildExecute ? 127 : 126);
+}
+
+const char* childStartupOperation(int stage) {
+    switch (stage) {
+        case kChildSetSession: return "setsid in PTY child";
+        case kChildOpenSlave: return "open PTY slave in child";
+        case kChildSetControllingTerminal: return "TIOCSCTTY in PTY child";
+        case kChildDuplicateDescriptors: return "dup2 in PTY child";
+        case kChildChangeDirectory: return "chdir in PTY child";
+        case kChildExecute: return "execve shell";
+        default: return "PTY child startup";
+    }
+}
+
+bool setCloseOnExec(int fd) {
+    const int flags = fcntl(fd, F_GETFD);
+    return flags >= 0 && fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == 0;
+}
+
 std::string javaString(JNIEnv* env, jstring value) {
     if (value == nullptr) return {};
     const char* chars = env->GetStringUTFChars(value, nullptr);
@@ -424,9 +472,29 @@ Java_com_waizusora_terminal_NativePty_nativeStart(
         return 0;
     }
 
+    int startupPipe[2];
+    if (pipe(startupPipe) != 0) {
+        const int saved = errno;
+        close(master);
+        errno = saved;
+        throwIoException(env, "Creating PTY startup error pipe");
+        return 0;
+    }
+    if (!setCloseOnExec(startupPipe[0]) || !setCloseOnExec(startupPipe[1])) {
+        const int saved = errno == 0 ? EIO : errno;
+        close(startupPipe[0]);
+        close(startupPipe[1]);
+        close(master);
+        errno = saved;
+        throwIoException(env, "Configuring PTY startup error pipe");
+        return 0;
+    }
+
     const pid_t child = fork();
     if (child < 0) {
         const int saved = errno;
+        close(startupPipe[0]);
+        close(startupPipe[1]);
         close(master);
         errno = saved;
         throwIoException(env, "fork");
@@ -434,24 +502,74 @@ Java_com_waizusora_terminal_NativePty_nativeStart(
     }
 
     if (child == 0) {
+        close(startupPipe[0]);
         close(master);
-        if (setsid() < 0) _exit(126);
+        if (setsid() < 0) reportChildStartupError(startupPipe[1], kChildSetSession);
 
         const int slave = open(slaveName, O_RDWR);
-        if (slave < 0) _exit(126);
+        if (slave < 0) reportChildStartupError(startupPipe[1], kChildOpenSlave);
 #ifdef TIOCSCTTY
-        if (ioctl(slave, TIOCSCTTY, 0) < 0) _exit(126);
+        if (ioctl(slave, TIOCSCTTY, 0) < 0) {
+            reportChildStartupError(startupPipe[1], kChildSetControllingTerminal);
+        }
 #endif
         if (dup2(slave, STDIN_FILENO) < 0 ||
             dup2(slave, STDOUT_FILENO) < 0 ||
             dup2(slave, STDERR_FILENO) < 0) {
-            _exit(126);
+            reportChildStartupError(startupPipe[1], kChildDuplicateDescriptors);
         }
         if (slave > STDERR_FILENO) close(slave);
-        if (chdir(workingDirectory.c_str()) != 0) _exit(126);
+        if (chdir(workingDirectory.c_str()) != 0) {
+            reportChildStartupError(startupPipe[1], kChildChangeDirectory);
+        }
 
         execve(shell.c_str(), arguments, environment.data());
-        _exit(127);
+        reportChildStartupError(startupPipe[1], kChildExecute);
+    }
+
+    close(startupPipe[1]);
+    ChildStartupError childError{};
+    size_t received = 0;
+    int startupReadError = 0;
+    while (received < sizeof(childError)) {
+        const ssize_t count = read(
+            startupPipe[0],
+            reinterpret_cast<char*>(&childError) + received,
+            sizeof(childError) - received
+        );
+        if (count > 0) {
+            received += static_cast<size_t>(count);
+        } else if (count == 0) {
+            break;
+        } else if (errno == EINTR) {
+            continue;
+        } else {
+            startupReadError = errno;
+            break;
+        }
+    }
+    close(startupPipe[0]);
+
+    if (startupReadError != 0 || received != 0) {
+        if (startupReadError == 0 && received != sizeof(childError)) {
+            startupReadError = EIO;
+        }
+        if (received == sizeof(childError) && startupReadError == 0) {
+            int status = 0;
+            while (waitpid(child, &status, 0) < 0 && errno == EINTR) {}
+            close(master);
+            errno = childError.error;
+            throwIoException(env, childStartupOperation(childError.stage));
+            return 0;
+        }
+
+        kill(child, SIGKILL);
+        int status = 0;
+        while (waitpid(child, &status, 0) < 0 && errno == EINTR) {}
+        close(master);
+        errno = startupReadError;
+        throwIoException(env, "Reading PTY child startup status");
+        return 0;
     }
 
     auto* process = new PtyProcess{master, child};
