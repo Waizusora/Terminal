@@ -132,3 +132,6 @@ The configured PATH limits ordinary command lookup to the application's `bin` an
 ## PTY lifecycle
 
 The native PTY reader uses a bounded poll interval so session shutdown can interrupt an idle read safely. A timeout is distinct from end-of-file, and the Kotlin PTY wrapper serializes reads with close operations to prevent native handle use-after-free. Session shutdown dispatches the potentially blocking child-process reap away from the Android UI thread.
+
+
+MyshProcess serializes startup scheduling and shutdown state transitions on the same monitor. Closing a session is idempotent, prevents a later startup from being queued, and atomically detaches the active PTY before asynchronous native cleanup.
