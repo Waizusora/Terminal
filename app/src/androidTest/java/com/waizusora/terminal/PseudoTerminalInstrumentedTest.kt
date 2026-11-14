@@ -47,7 +47,7 @@ class PseudoTerminalInstrumentedTest {
         try {
             terminal.start()
             terminal.resize(30, 100)
-            terminal.write("coreutils echo PTY_RUNTIME_OK\n".toByteArray(Charsets.UTF_8))
+            terminal.write("echo PTY_RUNTIME_OK\n".toByteArray(Charsets.UTF_8))
 
             val output = ByteArrayOutputStream()
             val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
