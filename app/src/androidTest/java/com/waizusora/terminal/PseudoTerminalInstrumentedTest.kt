@@ -206,6 +206,79 @@ class PseudoTerminalInstrumentedTest {
     }
 
     @Test
+    fun readsLargeShellOutputAcrossMultiplePtyReads() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val home = File(context.filesDir, "home/pty-output-burst")
+        check(home.isDirectory || home.mkdirs()) {
+            "Unable to create test directory: ${home.absolutePath}"
+        }
+
+        val terminal = PseudoTerminal(
+            shell = "/system/bin/sh",
+            workingDirectory = home.absolutePath,
+            home = home.absolutePath,
+            prefix = context.filesDir.absolutePath,
+            path = "/system/bin:/system/xbin",
+            rows = 24,
+            columns = 80
+        )
+
+        try {
+            terminal.start()
+            terminal.write(
+                "printf '%0100000d' 0; printf '\\nPTY_OUTPUT_BURST_DONE\\n'\n"
+                    .toByteArray(Charsets.UTF_8)
+            )
+            val output = awaitOutputEventually(terminal, "PTY_OUTPUT_BURST_DONE")
+            assertTrue(
+                "PTY output was truncated before the completion marker: ${output.length} bytes",
+                output.contains("PTY_OUTPUT_BURST_DONE")
+            )
+            assertTrue(
+                "PTY did not transport the complete 100 KB output burst: ${output.length} bytes",
+                output.length >= 100_000
+            )
+        } finally {
+            terminal.close()
+        }
+    }
+
+    @Test
+    fun writesInputLargerThanThePtyBufferWithoutTruncation() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val home = File(context.filesDir, "home/pty-input-burst")
+        check(home.isDirectory || home.mkdirs()) {
+            "Unable to create test directory: ${home.absolutePath}"
+        }
+
+        val terminal = PseudoTerminal(
+            shell = "/system/bin/sh",
+            workingDirectory = home.absolutePath,
+            home = home.absolutePath,
+            prefix = context.filesDir.absolutePath,
+            path = "/system/bin:/system/xbin",
+            rows = 24,
+            columns = 80
+        )
+
+        try {
+            terminal.start()
+            val input = StringBuilder("stty -echo\\n")
+            repeat(4096) { input.append(":\\n") }
+            input.append("echo PTY_INPUT_BURST_DONE\\n")
+            terminal.write(input.toString().toByteArray(Charsets.UTF_8))
+
+            val output = awaitOutputEventually(terminal, "PTY_INPUT_BURST_DONE")
+            assertTrue(
+                "PTY did not process input larger than the canonical input buffer: $output",
+                output.contains("PTY_INPUT_BURST_DONE")
+            )
+        } finally {
+            terminal.close()
+        }
+    }
+
+    @Test
     fun installerRefreshesStaleRuntimeSymlinks() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val nativeDirectory = File(context.applicationInfo.nativeLibraryDir)
