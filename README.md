@@ -87,7 +87,6 @@ This Unix-like hierarchy is an application-managed package prefix, not the Andro
 - The libvterm license text is included at `app/src/main/cpp/third_party/libvterm-LICENSE`.
 - The libvterm release archive is fetched by CMake and verified against a fixed SHA-256 digest.
 - The application remains licensed under BSD 3-Clause.
-- No GPL dependency is intentionally included.
 
 Third-party notices and license obligations must be preserved when redistributing the application.
 
