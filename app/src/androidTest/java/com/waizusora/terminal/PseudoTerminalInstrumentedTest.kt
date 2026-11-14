@@ -108,6 +108,58 @@ class PseudoTerminalInstrumentedTest {
         }
     }
     @Test
+    fun resizeUpdatesKernelPtyWindowSize() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val filesRoot = context.filesDir
+        val home = File(filesRoot, "home/pty-resize")
+        val bin = File(filesRoot, "bin")
+        val sbin = File(filesRoot, "sbin")
+        val usrBin = File(filesRoot, "usr/bin")
+        val usrSbin = File(filesRoot, "usr/sbin")
+        listOf(home, bin, sbin, usrBin, usrSbin).forEach { directory ->
+            check(directory.isDirectory || directory.mkdirs()) {
+                "Unable to create test directory: ${directory.absolutePath}"
+            }
+        }
+
+        val nativeDirectory = File(context.applicationInfo.nativeLibraryDir)
+        val shell = MyshInstaller.resolveExecutable(nativeDirectory)
+        MyshInstaller.installRuntimeCommands(nativeDirectory, bin)
+        val terminal = PseudoTerminal(
+            shell = shell.absolutePath,
+            workingDirectory = home.absolutePath,
+            home = home.absolutePath,
+            prefix = filesRoot.absolutePath,
+            path = listOf(bin, sbin, usrBin, usrSbin)
+                .joinToString(File.pathSeparator) { it.absolutePath },
+            rows = 24,
+            columns = 80
+        )
+
+        try {
+            terminal.start()
+            assertTrue(
+                "Initial PTY dimensions were not applied",
+                terminal.windowSize() == (24 to 80)
+            )
+
+            terminal.resize(31, 101)
+            assertTrue(
+                "PTY resize was not reflected by TIOCGWINSZ",
+                terminal.windowSize() == (31 to 101)
+            )
+
+            terminal.resize(40, 120)
+            assertTrue(
+                "A subsequent PTY resize did not replace the previous dimensions",
+                terminal.windowSize() == (40 to 120)
+            )
+        } finally {
+            terminal.close()
+        }
+    }
+
+    @Test
     fun installerRefreshesStaleRuntimeSymlinks() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val nativeDirectory = File(context.applicationInfo.nativeLibraryDir)
