@@ -160,6 +160,51 @@ class PseudoTerminalInstrumentedTest {
     }
 
     @Test
+    fun resizeSendsSigwinchToForegroundProcessGroup() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val filesRoot = context.filesDir
+        val home = File(filesRoot, "home/pty-sigwinch")
+        check(home.isDirectory || home.mkdirs()) {
+            "Unable to create test directory: ${home.absolutePath}"
+        }
+
+        val terminal = PseudoTerminal(
+            shell = "/system/bin/sh",
+            workingDirectory = home.absolutePath,
+            home = home.absolutePath,
+            prefix = filesRoot.absolutePath,
+            path = "/system/bin:/system/xbin",
+            rows = 24,
+            columns = 80
+        )
+
+        try {
+            terminal.start()
+            terminal.write(
+                "trap 'echo PTY_WINCH_RECEIVED' WINCH; " +
+                    "echo PTY_WINCH_READY\n" +
+                    "while :; do sleep 1; done\n"
+                    .toByteArray(Charsets.UTF_8)
+            )
+
+            val readyOutput = awaitOutputEventually(terminal, "PTY_WINCH_READY")
+            assertTrue(
+                "Signal test shell did not become ready: $readyOutput",
+                readyOutput.contains("PTY_WINCH_READY")
+            )
+
+            terminal.resize(32, 104)
+            val signalOutput = awaitOutputEventually(terminal, "PTY_WINCH_RECEIVED")
+            assertTrue(
+                "PTY resize did not deliver SIGWINCH to the foreground process group: $signalOutput",
+                signalOutput.contains("PTY_WINCH_RECEIVED")
+            )
+        } finally {
+            terminal.close()
+        }
+    }
+
+    @Test
     fun installerRefreshesStaleRuntimeSymlinks() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val nativeDirectory = File(context.applicationInfo.nativeLibraryDir)
@@ -316,6 +361,22 @@ class PseudoTerminalInstrumentedTest {
             output.write(bytes)
             val currentOutput = output.toString(Charsets.UTF_8.name())
             if (pattern.containsMatchIn(currentOutput)) return currentOutput
+        }
+        return output.toString(Charsets.UTF_8.name())
+    }
+
+    private fun awaitOutputEventually(terminal: PseudoTerminal, marker: String): String {
+        val output = ByteArrayOutputStream()
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
+        while (System.nanoTime() < deadline) {
+            val bytes = terminal.read()
+            if (bytes != null && bytes.isNotEmpty()) {
+                output.write(bytes)
+                val currentOutput = output.toString(Charsets.UTF_8.name())
+                if (currentOutput.contains(marker)) return currentOutput
+            } else {
+                Thread.sleep(10)
+            }
         }
         return output.toString(Charsets.UTF_8.name())
     }
