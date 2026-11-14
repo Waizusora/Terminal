@@ -140,9 +140,16 @@ private class TerminalSession(
     @Synchronized
     fun resize(rows: Int, columns: Int) {
         if (closed) return
-        val frame = emulator.resizeAndSnapshot(rows, columns)
-        runtime.resize(rows, columns)
-        applyFrame(frame)
+        try {
+            runtime.resize(rows, columns)
+            applyFrame(emulator.resizeAndSnapshot(rows, columns))
+        } catch (error: java.io.IOException) {
+            applyFrame(
+                emulator.feedAndSnapshot(
+                    "PTY resize failed: ${error.message}\n".toByteArray(Charsets.UTF_8)
+                )
+            )
+        }
     }
 
     @Synchronized
@@ -769,9 +776,9 @@ private class MyshProcess(
     @Synchronized
     fun resize(rows: Int, columns: Int) {
         if (rows <= 0 || columns <= 0) return
+        terminal?.resize(rows, columns)
         this.rows = rows
         this.columns = columns
-        terminal?.resize(rows, columns)
     }
 
     fun close() {
