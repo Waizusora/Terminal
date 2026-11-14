@@ -629,7 +629,7 @@ private class MyshProcess(
 
                 val shell = MyshInstaller.ensureInstalled(assets, filesRoot)
                 val shellVersion = MyshInstaller.verifyExecutable(shell)
-                onStatus("$shellVersion\\n")
+                onStatus("$shellVersion\n")
                 sessionTerminal = PseudoTerminal(
                     shell = shell.absolutePath,
                     workingDirectory = home.absolutePath,
@@ -660,7 +660,7 @@ private class MyshProcess(
                     onOutput(bytes)
                 }
             } catch (error: Exception) {
-                if (!closed) onStatus("Unable to initialize Mysh runtime: ${error.message}\\n")
+                if (!closed) onStatus("Unable to initialize Mysh runtime: ${error.message}\n")
             } finally {
                 synchronized(this) {
                     if (terminal === sessionTerminal) terminal = null
