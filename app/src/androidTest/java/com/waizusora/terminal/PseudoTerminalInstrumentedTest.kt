@@ -263,9 +263,9 @@ class PseudoTerminalInstrumentedTest {
 
         try {
             terminal.start()
-            val input = StringBuilder("stty -echo\\n")
-            repeat(4096) { input.append(":\\n") }
-            input.append("echo PTY_INPUT_BURST_DONE\\n")
+            val input = StringBuilder("stty -echo\n")
+            repeat(4096) { input.append(":\n") }
+            input.append("echo PTY_INPUT_BURST_DONE\n")
             terminal.write(input.toString().toByteArray(Charsets.UTF_8))
 
             val output = awaitOutputEventually(terminal, "PTY_INPUT_BURST_DONE")
