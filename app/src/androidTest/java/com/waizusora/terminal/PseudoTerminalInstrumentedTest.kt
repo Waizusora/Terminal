@@ -1,10 +1,14 @@
 package com.waizusora.terminal
 
+import android.system.ErrnoException
+import android.system.Os
+import android.system.OsConstants
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.TimeUnit
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -210,22 +214,8 @@ class PseudoTerminalInstrumentedTest {
         var secondSession: PseudoTerminal? = null
         try {
             firstSession.start()
-            firstSession.write(
-                "echo PTY_LIFECYCLE_FIRST_$$\n".toByteArray(Charsets.UTF_8)
-            )
-            val firstOutput = awaitOutputMatching(
-                firstSession,
-                Regex("PTY_LIFECYCLE_FIRST_(\\d+)")
-            )
-            val childPid = Regex("PTY_LIFECYCLE_FIRST_(\\d+)")
-                .find(firstOutput)
-                ?.groupValues
-                ?.get(1)
-                ?.toLongOrNull()
-            assertTrue(
-                "First PTY session did not return a valid shell PID: $firstOutput",
-                childPid != null && childPid > 0
-            )
+            val childPid = firstSession.processId()
+            assertTrue("PTY returned an invalid child PID", childPid > 0)
 
             val closeStarted = System.nanoTime()
             firstSession.close()
@@ -240,19 +230,13 @@ class PseudoTerminalInstrumentedTest {
             )
             firstSession.close()
 
-            val processProbe = ProcessBuilder(
-                "/system/bin/sh",
-                "-c",
-                "kill -0 ${childPid}"
-            ).start()
-            assertTrue(
-                "Timed out while checking whether the PTY shell process was reaped",
-                processProbe.waitFor(2, TimeUnit.SECONDS)
-            )
-            assertTrue(
-                "PTY shell process $childPid is still alive after close",
-                processProbe.exitValue() != 0
-            )
+            val processStillExists = try {
+                Os.kill(childPid.toInt(), 0)
+                true
+            } catch (error: ErrnoException) {
+                if (error.errno == OsConstants.ESRCH) false else throw error
+            }
+            assertFalse("PTY shell process $childPid is still alive after close", processStillExists)
 
             val restartedSession = newSession()
             secondSession = restartedSession
