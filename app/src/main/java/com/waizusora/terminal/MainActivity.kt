@@ -66,17 +66,32 @@ import java.io.File
 import java.util.concurrent.Executors
 import kotlinx.coroutines.flow.collect
 
+private object TerminalPalette {
+    val Background = Color(0xFF101114)
+    val Surface = Color(0xFF191C22)
+    val SessionInactive = Color(0xFF242830)
+    val SessionActive = Color(0xFF343B48)
+    val Shortcut = Color(0xFF20242C)
+    val Accent = Color(0xFF8AB4F8)
+    val TextPrimary = Color(0xFFE6E8ED)
+    val TextSecondary = Color(0xFF9299A5)
+    val Destructive = Color(0xFFE57373)
+}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
-                background = Color(0xFF101114),
-                surface = Color(0xFF101114),
-                primary = Color(0xFF8AB4F8),
-                onBackground = Color(0xFFE6E8ED),
-                onSurface = Color(0xFFE6E8ED)
+                background = TerminalPalette.Background,
+                surface = TerminalPalette.Surface,
+                surfaceVariant = TerminalPalette.Shortcut,
+                primary = TerminalPalette.Accent,
+                onBackground = TerminalPalette.TextPrimary,
+                onSurface = TerminalPalette.TextPrimary,
+                onSurfaceVariant = TerminalPalette.TextSecondary,
+                error = TerminalPalette.Destructive
             )) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -196,7 +211,7 @@ private fun TerminalScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF101114))
+            .background(TerminalPalette.Background)
             .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.ime)
     ) {
@@ -218,7 +233,7 @@ private fun TerminalScreen() {
                             modifier = Modifier
                                 .width(96.dp)
                                 .height(40.dp),
-                            color = if (session.id == activeId) Color(0xFF343B48) else Color(0xFF242830),
+                            color = if (session.id == activeId) TerminalPalette.SessionActive else TerminalPalette.SessionInactive,
                             shape = MaterialTheme.shapes.medium
                         ) {
                             Row(
@@ -233,7 +248,7 @@ private fun TerminalScreen() {
                                 ) {
                                     Text(
                                         text = session.id.toString(),
-                                        color = Color(0xFFE6E8ED),
+                                        color = TerminalPalette.TextPrimary,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -241,7 +256,7 @@ private fun TerminalScreen() {
                                 Surface(
                                     onClick = { pendingCloseId = session.id },
                                     modifier = Modifier.size(30.dp),
-                                    color = Color(0xFF29242A),
+                                    color = TerminalPalette.Shortcut,
                                     shape = CircleShape
                                 ) {
                                     Box(
@@ -250,7 +265,7 @@ private fun TerminalScreen() {
                                     ) {
                                         Text(
                                             text = "×",
-                                            color = Color(0xFFE57373),
+                                            color = TerminalPalette.Destructive,
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Normal
                                         )
@@ -294,7 +309,7 @@ private fun TerminalScreen() {
                     if (active.output.isNotEmpty()) {
                         Text(
                             text = active.output,
-                            color = Color(0xFFE6E8ED),
+                            color = TerminalPalette.TextPrimary,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 13.sp,
                             lineHeight = 19.sp
@@ -309,7 +324,7 @@ private fun TerminalScreen() {
                                 row,
                                 terminalColumns
                             ),
-                            color = Color(0xFFE6E8ED),
+                            color = TerminalPalette.TextPrimary,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 13.sp,
                             lineHeight = 19.sp,
@@ -345,7 +360,7 @@ private fun TerminalScreen() {
                         .padding(start = 8.dp),
                     singleLine = true,
                     textStyle = TextStyle(
-                        color = Color(0xFFE6E8ED),
+                        color = TerminalPalette.TextPrimary,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 14.sp
                     ),
@@ -426,9 +441,9 @@ private fun TerminalScreen() {
                     Text("Cancel")
                 }
             },
-            containerColor = Color(0xFF191C22),
+            containerColor = TerminalPalette.Surface,
             titleContentColor = Color(0xFFE6E8ED),
-            textContentColor = Color(0xFF9299A5)
+            textContentColor = TerminalPalette.TextSecondary
         )
     }
 }
@@ -441,12 +456,12 @@ private fun TerminalKey(
 ) {
     Surface(
         onClick = onClick,
-        color = if (emphasized) Color(0xFF8AB4F8) else Color(0xFF20242C),
+        color = if (emphasized) TerminalPalette.Accent else TerminalPalette.Shortcut,
         shape = MaterialTheme.shapes.small
     ) {
         Text(
             text = label,
-            color = if (emphasized) Color(0xFF101114) else Color(0xFFE6E8ED),
+            color = if (emphasized) TerminalPalette.Background else TerminalPalette.TextPrimary,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp)
@@ -465,7 +480,7 @@ private fun TerminalViewport(cells: IntArray, rows: Int, columns: Int, cursor: I
         repeat(rows) { row ->
             Text(
                 text = buildTerminalLine(cells, row, columns),
-                color = Color(0xFFE6E8ED),
+                color = TerminalPalette.TextPrimary,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
@@ -492,8 +507,8 @@ private fun buildTerminalLine(cells: IntArray, row: Int, columns: Int) =
             val width = cells[offset + 6]
             if (width <= 0) continue
 
-            var foreground = terminalColor(cells[offset + 8], Color(0xFFE6E8ED))
-            var background = terminalColor(cells[offset + 9], Color(0xFF101114))
+            var foreground = terminalColor(cells[offset + 8], TerminalPalette.TextPrimary)
+            var background = terminalColor(cells[offset + 9], TerminalPalette.Background)
             val attributes = cells[offset + 7]
             if ((attributes and 16) != 0) {
                 val previousForeground = foreground
