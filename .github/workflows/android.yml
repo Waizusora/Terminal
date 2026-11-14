@@ -169,6 +169,13 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Refresh Android command-line tools for emulator setup
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_HOME:-}"
+          rm -rf "$ANDROID_HOME/cmdline-tools"
+
       - name: Verify PTY on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
