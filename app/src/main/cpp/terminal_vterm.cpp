@@ -195,6 +195,7 @@ Java_com_waizusora_terminal_NativeTerminal_nativeResize(
     state->rows = rows;
     state->columns = columns;
     vterm_set_size(state->terminal, rows, columns);
+    ++state->scrollbackVersion;
 }
 
 extern "C" JNIEXPORT jintArray JNICALL
