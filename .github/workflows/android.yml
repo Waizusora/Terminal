@@ -64,7 +64,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Waizusora/Mysh
-          ref: c10a9b74
+          ref: c10a9b74bf806b2f90150dfbc7650c6c66331954
           path: .build/Mysh
 
       - name: Check out uutils Coreutils
