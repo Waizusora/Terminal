@@ -127,3 +127,8 @@ The native PTY and terminal engine integration has not been considered verified 
 ## Security boundary
 
 The configured PATH limits ordinary command lookup to the application's `bin` and `usr/bin` directories, but it is not a hard execution boundary. Mysh must independently validate canonical executable paths and reject absolute paths or traversal outside the private filesystem. Processes launched under the application UID retain that UID's Android permissions; this design is not an operating-system sandbox. Do not install untrusted executables.
+
+
+## PTY lifecycle
+
+The native PTY reader uses a bounded poll interval so session shutdown can interrupt an idle read safely. A timeout is distinct from end-of-file, and the Kotlin PTY wrapper serializes reads with close operations to prevent native handle use-after-free.
