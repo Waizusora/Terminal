@@ -113,17 +113,50 @@ private class TerminalSession(
     val emulator: TerminalEmulator
 ) {
     var input by mutableStateOf("")
-    var cells by mutableStateOf(emulator.snapshot())
-    var cursor by mutableStateOf(emulator.cursorSnapshot())
-    var scrollback by mutableStateOf(emulator.scrollbackSnapshot() ?: intArrayOf())
+    var cells by mutableStateOf(intArrayOf())
+    var cursor by mutableStateOf(intArrayOf(0, 0, 0))
+    var scrollback by mutableStateOf(intArrayOf())
     var contentVersion by mutableStateOf(0)
+    private var closed = false
 
+    init {
+        applyFrame(emulator.currentFrame())
+    }
+
+    @Synchronized
+    fun acceptOutput(bytes: ByteArray): ByteArray {
+        if (closed) return byteArrayOf()
+        val frame = emulator.feedAndSnapshot(bytes)
+        applyFrame(frame)
+        return frame.response
+    }
+
+    @Synchronized
+    fun acceptStatus(message: String) {
+        if (closed) return
+        applyFrame(emulator.feedAndSnapshot(message.toByteArray(Charsets.UTF_8)))
+    }
+
+    @Synchronized
     fun resize(rows: Int, columns: Int) {
-        emulator.resize(rows, columns)
+        if (closed) return
+        val frame = emulator.resizeAndSnapshot(rows, columns)
         runtime.resize(rows, columns)
-        cells = emulator.snapshot()
-        cursor = emulator.cursorSnapshot()
-        emulator.scrollbackSnapshot()?.let { scrollback = it }
+        applyFrame(frame)
+    }
+
+    @Synchronized
+    fun close() {
+        if (closed) return
+        closed = true
+        runtime.close()
+        emulator.close()
+    }
+
+    private fun applyFrame(frame: TerminalFrame) {
+        cells = frame.cells
+        cursor = frame.cursor
+        frame.scrollback?.let { scrollback = it }
         contentVersion++
     }
 }
@@ -158,20 +191,11 @@ private fun TerminalScreen() {
         activeId = id
         runtime.start(
             onOutput = { bytes ->
-                emulator.feed(bytes)
-                val response = emulator.readResponse()
+                val response = session.acceptOutput(bytes)
                 if (response.isNotEmpty()) runtime.write(response)
-                session.cells = emulator.snapshot()
-                session.cursor = emulator.cursorSnapshot()
-                emulator.scrollbackSnapshot()?.let { session.scrollback = it }
-                session.contentVersion++
             },
             onStatus = { message ->
-                emulator.feed(message.toByteArray(Charsets.UTF_8))
-                session.cells = emulator.snapshot()
-                session.cursor = emulator.cursorSnapshot()
-                emulator.scrollbackSnapshot()?.let { session.scrollback = it }
-                session.contentVersion++
+                session.acceptStatus(message)
             }
         )
     }
@@ -179,8 +203,7 @@ private fun TerminalScreen() {
     fun closeSession(id: Int) {
         val index = sessions.indexOfFirst { it.id == id }
         if (index < 0) return
-        sessions[index].runtime.close()
-        sessions[index].emulator.close()
+        sessions[index].close()
         sessions.removeAt(index)
         if (activeId == id) activeId = sessions.lastOrNull()?.id ?: 0
     }
@@ -191,10 +214,7 @@ private fun TerminalScreen() {
 
     DisposableEffect(Unit) {
         onDispose {
-            sessions.forEach {
-                it.runtime.close()
-                it.emulator.close()
-            }
+            sessions.forEach { it.close() }
         }
     }
 
