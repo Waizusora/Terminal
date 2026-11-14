@@ -43,7 +43,7 @@ class PseudoTerminalInstrumentedTest {
         try {
             terminal.start()
             terminal.resize(30, 100)
-            terminal.write("printf 'PTY_INTEGRATION_OK\\n'\n".toByteArray(Charsets.UTF_8))
+            terminal.write("echo PTY_INTEGRATION_OK\n".toByteArray(Charsets.UTF_8))
 
             val output = ByteArrayOutputStream()
             val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
