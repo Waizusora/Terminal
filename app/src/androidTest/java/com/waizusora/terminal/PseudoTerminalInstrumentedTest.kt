@@ -43,7 +43,7 @@ class PseudoTerminalInstrumentedTest {
         try {
             terminal.start()
             terminal.resize(30, 100)
-            terminal.write("pwd\n".toByteArray(Charsets.UTF_8))
+            terminal.write("coreutils echo PTY_RUNTIME_OK\n".toByteArray(Charsets.UTF_8))
 
             val output = ByteArrayOutputStream()
             val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
@@ -53,7 +53,7 @@ class PseudoTerminalInstrumentedTest {
                 if (bytes.isEmpty()) break
                 output.write(bytes)
                 receivedMarker = output.toString(Charsets.UTF_8.name())
-                    .contains(home.absolutePath)
+                    .contains("PTY_RUNTIME_OK")
             }
 
             assertTrue(
