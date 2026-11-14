@@ -103,4 +103,75 @@ class PseudoTerminalInstrumentedTest {
             terminal.close()
         }
     }
+    @Test
+    fun installerRefreshesStaleRuntimeSymlinks() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val nativeDirectory = File(context.applicationInfo.nativeLibraryDir)
+        val temporaryDirectory = java.nio.file.Files.createTempDirectory(
+            context.cacheDir.toPath(),
+            "runtime-link-test-"
+        )
+        try {
+            val binDirectory = temporaryDirectory.resolve("bin").toFile()
+            check(binDirectory.mkdirs())
+            val coreutilsLink = File(binDirectory, "coreutils")
+            val mypkLink = File(binDirectory, "mypk")
+            java.nio.file.Files.createSymbolicLink(
+                coreutilsLink.toPath(),
+                temporaryDirectory.resolve("old-coreutils")
+            )
+            java.nio.file.Files.createSymbolicLink(
+                mypkLink.toPath(),
+                temporaryDirectory.resolve("old-mypk")
+            )
+
+            MyshInstaller.installRuntimeCommands(nativeDirectory, binDirectory)
+
+            assertTrue(
+                "Coreutils link was not refreshed",
+                java.nio.file.Files.isSymbolicLink(coreutilsLink.toPath()) &&
+                    java.nio.file.Files.readSymbolicLink(coreutilsLink.toPath()) ==
+                    File(nativeDirectory, "libcoreutils.so").toPath().toAbsolutePath().normalize()
+            )
+            assertTrue(
+                "MYPK link was not refreshed",
+                java.nio.file.Files.isSymbolicLink(mypkLink.toPath()) &&
+                    java.nio.file.Files.readSymbolicLink(mypkLink.toPath()) ==
+                    File(nativeDirectory, "libmypk.so").toPath().toAbsolutePath().normalize()
+            )
+        } finally {
+            temporaryDirectory.toFile().walkBottomUp().forEach { it.delete() }
+        }
+    }
+
+    @Test
+    fun installerRejectsUnexpectedFilesAtRuntimeCommandPaths() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val nativeDirectory = File(context.applicationInfo.nativeLibraryDir)
+        val temporaryDirectory = java.nio.file.Files.createTempDirectory(
+            context.cacheDir.toPath(),
+            "runtime-file-test-"
+        )
+        try {
+            val binDirectory = temporaryDirectory.resolve("bin").toFile()
+            check(binDirectory.mkdirs())
+            val unexpectedFile = File(binDirectory, "coreutils")
+            check(unexpectedFile.writeText("not a symlink").let { unexpectedFile.isFile })
+
+            var rejected = false
+            try {
+                MyshInstaller.installRuntimeCommands(nativeDirectory, binDirectory)
+            } catch (_: java.io.IOException) {
+                rejected = true
+            }
+            assertTrue(
+                "Installer must reject a regular file at the coreutils command path",
+                rejected
+            )
+            assertTrue("Unexpected file must remain untouched", unexpectedFile.readText() == "not a symlink")
+        } finally {
+            temporaryDirectory.toFile().walkBottomUp().forEach { it.delete() }
+        }
+    }
+
 }
