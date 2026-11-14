@@ -67,7 +67,7 @@ class PseudoTerminalInstrumentedTest {
             )
 
             output.reset()
-            terminal.write("mypk --version\\n".toByteArray(Charsets.UTF_8))
+            terminal.write("mypk --version\n".toByteArray(Charsets.UTF_8))
             val mypkDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
             var receivedMypkVersion = false
             while (System.nanoTime() < mypkDeadline && !receivedMypkVersion) {
