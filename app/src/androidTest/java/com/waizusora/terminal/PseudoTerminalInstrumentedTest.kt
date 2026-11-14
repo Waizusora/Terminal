@@ -211,12 +211,17 @@ class PseudoTerminalInstrumentedTest {
         try {
             firstSession.start()
             firstSession.write(
-                "echo PTY_LIFECYCLE_FIRST\n".toByteArray(Charsets.UTF_8)
+                "echo PTY_LIFECYCLE_FIRST_$\n".toByteArray(Charsets.UTF_8)
             )
-            val firstOutput = awaitOutput(firstSession, "PTY_LIFECYCLE_FIRST")
+            val firstOutput = awaitOutput(firstSession, "PTY_LIFECYCLE_FIRST_")
+            val childPid = Regex("PTY_LIFECYCLE_FIRST_(\\d+)")
+                .find(firstOutput)
+                ?.groupValues
+                ?.get(1)
+                ?.toLongOrNull()
             assertTrue(
-                "First PTY session did not return its output: $firstOutput",
-                firstOutput.contains("PTY_LIFECYCLE_FIRST")
+                "First PTY session did not return a valid shell PID: $firstOutput",
+                childPid != null && childPid > 0
             )
 
             val closeStarted = System.nanoTime()
@@ -231,6 +236,20 @@ class PseudoTerminalInstrumentedTest {
                 firstSession.read()?.isEmpty() == true
             )
             firstSession.close()
+
+            val processProbe = ProcessBuilder(
+                "/system/bin/sh",
+                "-c",
+                "kill -0 ${childPid}"
+            ).start()
+            assertTrue(
+                "Timed out while checking whether the PTY shell process was reaped",
+                processProbe.waitFor(2, TimeUnit.SECONDS)
+            )
+            assertTrue(
+                "PTY shell process $childPid is still alive after close",
+                processProbe.exitValue() != 0
+            )
 
             val restartedSession = newSession()
             secondSession = restartedSession
