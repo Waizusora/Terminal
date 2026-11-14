@@ -41,10 +41,11 @@ jobs:
           set -euo pipefail
           curl -fsSL https://dl.google.com/android/cli/latest/linux_x86_64/install.sh | bash
           source "$HOME/.bashrc" 2>/dev/null || true
-          ANDROID_CLI="$(command -v android || find "$HOME" -type f -name android -perm -u+x -print -quit)"
+          export PATH="$HOME/.local/bin:$HOME/.android/bin:$HOME/bin:$PATH"
+          ANDROID_CLI="$(command -v android || find "$HOME" -name android -executable -print -quit)"
           test -n "$ANDROID_CLI"
           echo "$(dirname "$ANDROID_CLI")" >> "$GITHUB_PATH"
-          "$ANDROID_CLI" --version
+          "$ANDROID_CLI" -V
 
       - name: Install Android SDK packages
         shell: bash
