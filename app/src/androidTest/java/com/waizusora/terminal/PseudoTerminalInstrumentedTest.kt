@@ -67,6 +67,23 @@ class PseudoTerminalInstrumentedTest {
             )
 
             output.reset()
+            terminal.write("echo \"\\$MYSH_PREFIX\"\n".toByteArray(Charsets.UTF_8))
+            val prefixDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
+            var receivedPrefix = false
+            while (System.nanoTime() < prefixDeadline && !receivedPrefix) {
+                val bytes = terminal.read() ?: continue
+                if (bytes.isEmpty()) break
+                output.write(bytes)
+                receivedPrefix = output.toString(Charsets.UTF_8.name())
+                    .contains(filesRoot.absolutePath)
+            }
+            assertTrue(
+                "PTY did not expose MYSH_PREFIX to Mysh. Received: " +
+                    output.toString(Charsets.UTF_8.name()),
+                receivedPrefix
+            )
+
+            output.reset()
             terminal.write("mypk --version\n".toByteArray(Charsets.UTF_8))
             val mypkDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
             var receivedMypkVersion = false
