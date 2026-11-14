@@ -21,6 +21,11 @@ The interface is focused on the terminal workspace. The top bar does not display
 
 The application interface uses the Obsidian Graphite palette: background `#101114`, secondary surface `#191C22`, inactive session `#242830`, active session `#343B48`, shortcut surface `#20242C`, accent `#8AB4F8`, primary text `#E6E8ED`, secondary text `#9299A5`, and destructive actions `#E57373`. These colors apply to application chrome and controls. Terminal-emulator ANSI and truecolor output remains mapped from the shell's color sequences and is not replaced by the application palette.
 
+
+## Launcher icon
+
+The Android launcher icon uses an Obsidian Graphite adaptive icon with a centered `>_` terminal prompt. Its graphite background, subtle border, and light foreground symbol are defined in Android resources under `app/src/main/res`. Both standard and round adaptive icon resource names are configured in the application manifest.
+
 ## Terminal emulation
 
 Each session owns an independent libvterm instance. Mysh output bytes are passed to the emulator, which maintains a VT screen grid. The Compose renderer reads the cell grid and renders Unicode text, foreground and background colors, bold, italic, underline, strike-through, and reverse video. The cursor position and visibility are obtained from libvterm and rendered as a visible cursor bar in the active terminal viewport.
