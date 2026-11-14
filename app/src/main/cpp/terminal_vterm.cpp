@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <poll.h>
 #include <string>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -466,12 +467,30 @@ Java_com_waizusora_terminal_NativePty_nativeRead(
     const size_t capacity = static_cast<size_t>(
         maximumBytes > 0 && maximumBytes < 65536 ? maximumBytes : 4096
     );
+    pollfd descriptor {};
+    descriptor.fd = process->masterFd;
+    descriptor.events = POLLIN | POLLHUP | POLLERR;
+
+    int ready;
+    do {
+        ready = poll(&descriptor, 1, 100);
+    } while (ready < 0 && errno == EINTR);
+
+    if (ready == 0) return nullptr;
+    if (ready < 0) {
+        throwIoException(env, "poll PTY master");
+        return nullptr;
+    }
+
     std::vector<jbyte> buffer(capacity);
     ssize_t count;
     do {
         count = read(process->masterFd, buffer.data(), buffer.size());
     } while (count < 0 && errno == EINTR);
 
+    if (count < 0 && (errno == EIO || errno == EAGAIN || errno == EWOULDBLOCK)) {
+        return env->NewByteArray(0);
+    }
     if (count <= 0) return env->NewByteArray(0);
     jbyteArray result = env->NewByteArray(static_cast<jsize>(count));
     if (result != nullptr) {
