@@ -21,6 +21,7 @@ internal object NativePty {
     @JvmStatic external fun nativeRead(handle: Long, maximumBytes: Int): ByteArray?
     @JvmStatic external fun nativeWrite(handle: Long, input: ByteArray)
     @JvmStatic external fun nativeResize(handle: Long, rows: Int, columns: Int)
+    @JvmStatic external fun nativeProcessId(handle: Long): Long
     @JvmStatic external fun nativeClose(handle: Long)
 }
 
@@ -57,6 +58,13 @@ internal class PseudoTerminal(
         if (current != 0L && input.isNotEmpty()) {
             NativePty.nativeWrite(current, input)
         }
+    }
+
+    @Synchronized
+    fun processId(): Long {
+        val current = handle
+        check(current != 0L) { "PTY has not been started or is already closed." }
+        return NativePty.nativeProcessId(current)
     }
 
     @Synchronized
