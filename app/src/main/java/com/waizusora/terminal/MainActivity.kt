@@ -583,7 +583,11 @@ private class MyshProcess(
     @Volatile private var rows = initialRows
     @Volatile private var columns = initialColumns
     private val executor = Executors.newSingleThreadExecutor()
+    private val writerExecutor = Executors.newSingleThreadExecutor()
     private val pendingInput = ByteArrayOutputStream()
+
+    @Volatile
+    private var statusCallback: ((String) -> Unit)? = null
 
     @Volatile
     private var terminal: PseudoTerminal? = null
@@ -597,6 +601,7 @@ private class MyshProcess(
         onStatus: (String) -> Unit
     ) {
         if (closed) return
+        statusCallback = onStatus
         executor.execute {
             var sessionTerminal: PseudoTerminal? = null
             try {
@@ -657,7 +662,7 @@ private class MyshProcess(
                     terminal = sessionTerminal
                     val queued = pendingInput.toByteArray()
                     pendingInput.reset()
-                    if (queued.isNotEmpty()) sessionTerminal.write(queued)
+                    if (queued.isNotEmpty()) enqueueWrite(sessionTerminal, queued)
                 }
 
                 while (!closed) {
@@ -684,9 +689,31 @@ private class MyshProcess(
         if (closed || value.isEmpty()) return
         val activeTerminal = terminal
         if (activeTerminal != null) {
-            activeTerminal.write(value)
+            enqueueWrite(activeTerminal, value.copyOf())
         } else {
             pendingInput.write(value)
+        }
+    }
+
+    private fun enqueueWrite(target: PseudoTerminal, input: ByteArray) {
+        if (closed || input.isEmpty()) return
+        try {
+            writerExecutor.execute {
+                if (closed) return@execute
+                try {
+                    target.write(input)
+                } catch (error: Exception) {
+                    if (!closed) {
+                        statusCallback?.invoke(
+                            "PTY input failed: ${error.message}\n"
+                        )
+                    }
+                }
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) {
+            if (!closed) {
+                statusCallback?.invoke("PTY input queue is unavailable.\n")
+            }
         }
     }
 
@@ -705,6 +732,8 @@ private class MyshProcess(
             terminal.also { terminal = null }
         }
         executor.shutdownNow()
+        writerExecutor.shutdownNow()
+        pendingInput.reset()
         if (activeTerminal != null) {
             Thread(
                 { activeTerminal.close() },
