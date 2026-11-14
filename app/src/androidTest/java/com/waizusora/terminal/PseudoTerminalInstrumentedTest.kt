@@ -67,7 +67,7 @@ class PseudoTerminalInstrumentedTest {
             )
 
             output.reset()
-            terminal.write("echo \"\\$MYSH_PREFIX\"\n".toByteArray(Charsets.UTF_8))
+            terminal.write("echo \"\$MYSH_PREFIX\"\n".toByteArray(Charsets.UTF_8))
             val prefixDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
             var receivedPrefix = false
             while (System.nanoTime() < prefixDeadline && !receivedPrefix) {
