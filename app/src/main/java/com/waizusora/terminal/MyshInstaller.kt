@@ -51,4 +51,45 @@ internal object MyshInstaller {
         }
         return output
     }
+
+    fun installRuntimeCommands(nativeLibraryDirectory: File, binDirectory: File) {
+        installCommandLink(
+            File(nativeLibraryDirectory, "libcoreutils.so"),
+            File(binDirectory, "coreutils")
+        )
+        installCommandLink(
+            File(nativeLibraryDirectory, "libmypk.so"),
+            File(binDirectory, "mypk")
+        )
+    }
+
+    private fun installCommandLink(executable: File, link: File) {
+        if (!executable.isFile || !executable.canExecute()) {
+            throw IOException(
+                "Packaged runtime command is missing or not executable: ${executable.absolutePath}"
+            )
+        }
+
+        val target = executable.toPath().toAbsolutePath().normalize()
+        val linkPath = link.toPath()
+        if (java.nio.file.Files.exists(linkPath, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            if (!java.nio.file.Files.isSymbolicLink(linkPath) ||
+                java.nio.file.Files.readSymbolicLink(linkPath) != target
+            ) {
+                throw IOException(
+                    "Runtime command path is occupied by an unexpected file: ${link.absolutePath}"
+                )
+            }
+            return
+        }
+
+        try {
+            java.nio.file.Files.createSymbolicLink(linkPath, target)
+        } catch (error: IOException) {
+            throw IOException(
+                "Unable to link runtime command ${link.absolutePath} to ${executable.absolutePath}",
+                error
+            )
+        }
+    }
 }
