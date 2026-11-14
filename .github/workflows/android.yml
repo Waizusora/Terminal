@@ -82,12 +82,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          readelf -h app/src/main/jniLibs/arm64-v8a/mysh | grep -F "Machine:" | grep -F "AArch64"
-          readelf -h app/src/main/jniLibs/armeabi-v7a/mysh | grep -F "Machine:" | grep -F "ARM"
-          readelf -h app/src/main/jniLibs/x86_64/mysh | grep -F "Machine:" | grep -F "Advanced Micro Devices X86-64"
-          test -x app/src/main/jniLibs/arm64-v8a/mysh
-          test -x app/src/main/jniLibs/armeabi-v7a/mysh
-          test -x app/src/main/jniLibs/x86_64/mysh
+          readelf -h app/src/main/jniLibs/arm64-v8a/libmysh.so | grep -F "Machine:" | grep -F "AArch64"
+          readelf -h app/src/main/jniLibs/armeabi-v7a/libmysh.so | grep -F "Machine:" | grep -F "ARM"
+          readelf -h app/src/main/jniLibs/x86_64/libmysh.so | grep -F "Machine:" | grep -F "Advanced Micro Devices X86-64"
+          test -x app/src/main/jniLibs/arm64-v8a/libmysh.so
+          test -x app/src/main/jniLibs/armeabi-v7a/libmysh.so
+          test -x app/src/main/jniLibs/x86_64/libmysh.so
 
       - name: Detect release signing configuration
         id: signing
