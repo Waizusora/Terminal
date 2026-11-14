@@ -43,6 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -113,6 +116,8 @@ private fun TerminalScreen() {
     var terminalRows by remember { mutableStateOf(24) }
     var terminalColumns by remember { mutableStateOf(80) }
     val density = androidx.compose.ui.platform.LocalDensity.current
+    val terminalInputFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     val cellWidthPx = with(density) { 13.sp.toPx() * 0.602f }
     val lineHeightPx = with(density) { 19.sp.toPx() }
 
@@ -191,46 +196,38 @@ private fun TerminalScreen() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 14.dp, top = 12.dp, bottom = 10.dp),
+                .padding(start = 12.dp, end = 14.dp, top = 12.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Terminal",
-                color = Color(0xFFF1F1F1),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f)
-            )
-            TerminalKey(label = "+", onClick = { createSession() }, emphasized = true)
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            sessions.forEach { session ->
+            Box(modifier = Modifier.weight(1f)) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .background(
-                            if (session.id == activeId) Color(0xFF303238) else Color(0xFF1B1D22),
-                            MaterialTheme.shapes.small
-                        )
-                        .clickable { activeId = session.id }
-                        .padding(start = 11.dp, end = 7.dp, top = 6.dp, bottom = 6.dp)
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = session.id.toString(),
-                        color = Color(0xFFEAEAEA),
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    TerminalKey(label = "×", onClick = { closeSession(session.id) })
+                    sessions.forEach { session ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .background(
+                                    if (session.id == activeId) Color(0xFF303238) else Color(0xFF1B1D22),
+                                    MaterialTheme.shapes.small
+                                )
+                                .clickable { activeId = session.id }
+                                .padding(start = 11.dp, end = 7.dp, top = 6.dp, bottom = 6.dp)
+                        ) {
+                            Text(
+                                text = session.id.toString(),
+                                color = Color(0xFFEAEAEA),
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            TerminalKey(label = "×", onClick = { closeSession(session.id) })
+                        }
+                    }
                 }
             }
+            TerminalKey(label = "+", onClick = { createSession() }, emphasized = true)
         }
 
         if (active != null) {
@@ -239,6 +236,10 @@ private fun TerminalScreen() {
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .clickable {
+                        terminalInputFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
                     .onSizeChanged { size ->
                         if (size.width > 0 && size.height > 0) {
                             val columns = (size.width / cellWidthPx).toInt().coerceIn(1, 500)
@@ -306,6 +307,7 @@ private fun TerminalScreen() {
                     },
                     modifier = Modifier
                         .weight(1f)
+                        .focusRequester(terminalInputFocusRequester)
                         .padding(start = 8.dp),
                     singleLine = true,
                     textStyle = TextStyle(
