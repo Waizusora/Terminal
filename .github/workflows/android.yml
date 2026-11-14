@@ -63,31 +63,31 @@ jobs:
         run: |
           set -euo pipefail
           NDK_TOOLCHAIN="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          ASSET_ROOT="app/src/main/assets/mysh"
-          mkdir -p "$ASSET_ROOT/arm64-v8a" "$ASSET_ROOT/armeabi-v7a" "$ASSET_ROOT/x86_64"
+          NATIVE_LIB_ROOT="app/src/main/jniLibs"
+          mkdir -p "$NATIVE_LIB_ROOT/arm64-v8a" "$NATIVE_LIB_ROOT/armeabi-v7a" "$NATIVE_LIB_ROOT/x86_64"
 
           CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$NDK_TOOLCHAIN/aarch64-linux-android21-clang" \
             cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --target aarch64-linux-android
-          install -m 755 .build/Mysh/target/aarch64-linux-android/release/mysh "$ASSET_ROOT/arm64-v8a/mysh"
+          install -m 755 .build/Mysh/target/aarch64-linux-android/release/mysh "$NATIVE_LIB_ROOT/arm64-v8a/libmysh.so"
 
           CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$NDK_TOOLCHAIN/armv7a-linux-androideabi21-clang" \
             cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --target armv7-linux-androideabi
-          install -m 755 .build/Mysh/target/armv7-linux-androideabi/release/mysh "$ASSET_ROOT/armeabi-v7a/mysh"
+          install -m 755 .build/Mysh/target/armv7-linux-androideabi/release/mysh "$NATIVE_LIB_ROOT/armeabi-v7a/libmysh.so"
 
           CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$NDK_TOOLCHAIN/x86_64-linux-android21-clang" \
             cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --target x86_64-linux-android
-          install -m 755 .build/Mysh/target/x86_64-linux-android/release/mysh "$ASSET_ROOT/x86_64/mysh"
+          install -m 755 .build/Mysh/target/x86_64-linux-android/release/mysh "$NATIVE_LIB_ROOT/x86_64/libmysh.so"
 
       - name: Verify packaged Mysh ELF architectures
         shell: bash
         run: |
           set -euo pipefail
-          readelf -h app/src/main/assets/mysh/arm64-v8a/mysh | grep -F "Machine:" | grep -F "AArch64"
-          readelf -h app/src/main/assets/mysh/armeabi-v7a/mysh | grep -F "Machine:" | grep -F "ARM"
-          readelf -h app/src/main/assets/mysh/x86_64/mysh | grep -F "Machine:" | grep -F "Advanced Micro Devices X86-64"
-          test -x app/src/main/assets/mysh/arm64-v8a/mysh
-          test -x app/src/main/assets/mysh/armeabi-v7a/mysh
-          test -x app/src/main/assets/mysh/x86_64/mysh
+          readelf -h app/src/main/jniLibs/arm64-v8a/mysh | grep -F "Machine:" | grep -F "AArch64"
+          readelf -h app/src/main/jniLibs/armeabi-v7a/mysh | grep -F "Machine:" | grep -F "ARM"
+          readelf -h app/src/main/jniLibs/x86_64/mysh | grep -F "Machine:" | grep -F "Advanced Micro Devices X86-64"
+          test -x app/src/main/jniLibs/arm64-v8a/mysh
+          test -x app/src/main/jniLibs/armeabi-v7a/mysh
+          test -x app/src/main/jniLibs/x86_64/mysh
 
       - name: Detect release signing configuration
         id: signing
