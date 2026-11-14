@@ -211,7 +211,7 @@ class PseudoTerminalInstrumentedTest {
         try {
             firstSession.start()
             firstSession.write(
-                "echo PTY_LIFECYCLE_FIRST_$\n".toByteArray(Charsets.UTF_8)
+                "echo PTY_LIFECYCLE_FIRST_\$\$\n".toByteArray(Charsets.UTF_8)
             )
             val firstOutput = awaitOutput(firstSession, "PTY_LIFECYCLE_FIRST_")
             val childPid = Regex("PTY_LIFECYCLE_FIRST_(\\d+)")
