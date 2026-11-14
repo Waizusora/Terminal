@@ -144,7 +144,12 @@ private fun TerminalScreen() {
 
     fun createSession() {
         val id = nextSessionId++
-        val runtime = MyshProcess(context.filesDir, context.assets, terminalRows, terminalColumns)
+        val runtime = MyshProcess(
+            filesRoot = context.filesDir,
+            nativeLibraryDirectory = File(context.applicationInfo.nativeLibraryDir),
+            initialRows = terminalRows,
+            initialColumns = terminalColumns
+        )
         val emulator = TerminalEmulator(terminalRows, terminalColumns)
         val session = TerminalSession(id, runtime, emulator)
         sessions.add(session)
@@ -572,7 +577,7 @@ private fun xtermPalette(index: Int): Color {
 
 private class MyshProcess(
     private val filesRoot: File,
-    private val assets: AssetManager,
+    private val nativeLibraryDirectory: File,
     initialRows: Int,
     initialColumns: Int
 ) {
@@ -627,7 +632,7 @@ private class MyshProcess(
                     }
                 }
 
-                val shell = MyshInstaller.ensureInstalled(assets, filesRoot)
+                val shell = MyshInstaller.resolveExecutable(nativeLibraryDirectory)
                 val shellVersion = MyshInstaller.verifyExecutable(shell)
                 onStatus("$shellVersion\n")
                 sessionTerminal = PseudoTerminal(
