@@ -73,14 +73,13 @@ internal object MyshInstaller {
         val target = executable.toPath().toAbsolutePath().normalize()
         val linkPath = link.toPath()
         if (java.nio.file.Files.exists(linkPath, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-            if (!java.nio.file.Files.isSymbolicLink(linkPath) ||
-                java.nio.file.Files.readSymbolicLink(linkPath) != target
-            ) {
+            if (!java.nio.file.Files.isSymbolicLink(linkPath)) {
                 throw IOException(
                     "Runtime command path is occupied by an unexpected file: ${link.absolutePath}"
                 )
             }
-            return
+            if (java.nio.file.Files.readSymbolicLink(linkPath) == target) return
+            java.nio.file.Files.delete(linkPath)
         }
 
         try {
