@@ -67,6 +67,13 @@ jobs:
           ref: dceff7f7276517d4de75c6327b41dd7627d15ec9
           path: .build/Mysh
 
+      - name: Check out uutils Coreutils
+        uses: actions/checkout@v7
+        with:
+          repository: uutils/coreutils
+          ref: dc1efd89948a9ca4c78c3a4b9a6ac891019a8c69
+          path: .build/uutils-coreutils
+
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -74,6 +81,46 @@ jobs:
 
       - name: Run Mysh host tests
         run: cargo test --manifest-path .build/Mysh/Cargo.toml --locked --all-targets
+
+      - name: Configure Android NDK compiler tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          NDK_TOOLCHAIN="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          echo "CC_aarch64_linux_android=$NDK_TOOLCHAIN/aarch64-linux-android21-clang" >> "$GITHUB_ENV"
+          echo "CXX_aarch64_linux_android=$NDK_TOOLCHAIN/aarch64-linux-android21-clang++" >> "$GITHUB_ENV"
+          echo "AR_aarch64_linux_android=$NDK_TOOLCHAIN/llvm-ar" >> "$GITHUB_ENV"
+          echo "CC_x86_64_linux_android=$NDK_TOOLCHAIN/x86_64-linux-android21-clang" >> "$GITHUB_ENV"
+          echo "CXX_x86_64_linux_android=$NDK_TOOLCHAIN/x86_64-linux-android21-clang++" >> "$GITHUB_ENV"
+          echo "AR_x86_64_linux_android=$NDK_TOOLCHAIN/llvm-ar" >> "$GITHUB_ENV"
+
+      - name: Patch uutils Android uptime type
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path(".build/uutils-coreutils/src/uu/uptime/src/platform/unix.rs")
+          old = "print_uptime(Some(upsecs))?;"
+          new = "print_uptime(Some(upsecs as uucore::libc::time_t))?;"
+          source = path.read_text()
+          if source.count(old) != 1:
+              raise SystemExit(f"unexpected uutils source in {path}; refusing compatibility patch")
+          path.write_text(source.replace(old, new))
+          PY
+
+      - name: Build uutils Coreutils for Android ABIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --manifest-path .build/uutils-coreutils/Cargo.toml --locked --release --target aarch64-linux-android --no-default-features --features feat_common_core,df,du,env,kill,nohup,nproc,more,sync,tac,timeout,uptime,whoami,feat_require_unix_core
+          cargo build --manifest-path .build/uutils-coreutils/Cargo.toml --locked --release --target x86_64-linux-android --no-default-features --features feat_common_core,df,du,env,kill,nohup,nproc,more,sync,tac,timeout,uptime,whoami,feat_require_unix_core
+
+      - name: Build MYPK for Android ABIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --package my-pkg-keeper --target aarch64-linux-android
+          cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --package my-pkg-keeper --target x86_64-linux-android
 
       - name: Build and package Mysh for Android ABIs
         shell: bash
@@ -91,6 +138,11 @@ jobs:
             cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --target x86_64-linux-android
           install -m 755 .build/Mysh/target/x86_64-linux-android/release/mysh "$NATIVE_LIB_ROOT/x86_64/libmysh.so"
 
+          install -m 755 .build/uutils-coreutils/target/aarch64-linux-android/release/coreutils "$NATIVE_LIB_ROOT/arm64-v8a/libcoreutils.so"
+          install -m 755 .build/uutils-coreutils/target/x86_64-linux-android/release/coreutils "$NATIVE_LIB_ROOT/x86_64/libcoreutils.so"
+          install -m 755 .build/Mysh/target/aarch64-linux-android/release/mypk "$NATIVE_LIB_ROOT/arm64-v8a/libmypk.so"
+          install -m 755 .build/Mysh/target/x86_64-linux-android/release/mypk "$NATIVE_LIB_ROOT/x86_64/libmypk.so"
+
       - name: Verify packaged Mysh ELF architectures
         shell: bash
         run: |
@@ -99,6 +151,14 @@ jobs:
           readelf -h app/src/main/jniLibs/x86_64/libmysh.so | grep -F "Machine:" | grep -F "Advanced Micro Devices X86-64"
           test -x app/src/main/jniLibs/arm64-v8a/libmysh.so
           test -x app/src/main/jniLibs/x86_64/libmysh.so
+          readelf -h app/src/main/jniLibs/arm64-v8a/libcoreutils.so | grep -F "Machine:" | grep -F "AArch64"
+          readelf -h app/src/main/jniLibs/x86_64/libcoreutils.so | grep -F "Machine:" | grep -F "Advanced Micro Devices X86-64"
+          readelf -h app/src/main/jniLibs/arm64-v8a/libmypk.so | grep -F "Machine:" | grep -F "AArch64"
+          readelf -h app/src/main/jniLibs/x86_64/libmypk.so | grep -F "Machine:" | grep -F "Advanced Micro Devices X86-64"
+          test -x app/src/main/jniLibs/arm64-v8a/libcoreutils.so
+          test -x app/src/main/jniLibs/x86_64/libcoreutils.so
+          test -x app/src/main/jniLibs/arm64-v8a/libmypk.so
+          test -x app/src/main/jniLibs/x86_64/libmypk.so
 
       - name: Verify PTY on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
