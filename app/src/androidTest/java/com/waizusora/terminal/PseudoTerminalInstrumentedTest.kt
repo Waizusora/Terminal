@@ -225,11 +225,11 @@ class PseudoTerminalInstrumentedTest {
 
         try {
             terminal.start()
-            val chunk = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            terminal.write("stty -echo\n".toByteArray(Charsets.UTF_8))
+            Thread.sleep(100)
             terminal.write(
                 (
-                    "i=0; while [ \"\$i\" -lt 1000 ]; do printf '%s' '$chunk'; " +
-                        "i=\$((i + 1)); done; printf 'PTY_OUTPUT_'; " +
+                    "printf '%100000s' ''; printf 'PTY_OUTPUT_'; " +
                         "printf 'BURST_DONE\\n'\n"
                     ).toByteArray(Charsets.UTF_8)
             )
