@@ -52,7 +52,7 @@ The application uses its private files directory as the runtime prefix:
 
 ```text
 files/
-├── bin/             # Mysh and primary executable commands
+├── bin/             # Primary executable commands installed by the user
 ├── sbin/            # Administrative commands
 ├── lib/             # Shared libraries
 ├── libexec/         # Private executable helpers
