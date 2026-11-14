@@ -743,7 +743,7 @@ private class MyshProcess(
             } else if (value.size <= MAX_PENDING_INPUT_BYTES - pendingInput.size()) {
                 pendingInput.write(value)
             } else {
-                statusMessage = "PTY startup input limit exceeded; input was rejected.\\n"
+                statusMessage = "PTY startup input limit exceeded; input was rejected.\n"
             }
             if (statusMessage != null) callback = statusCallback
         }
@@ -753,7 +753,7 @@ private class MyshProcess(
     private fun enqueueWrite(target: PseudoTerminal, input: ByteArray): String? {
         if (closed || input.isEmpty()) return null
         if (input.size > MAX_QUEUED_INPUT_BYTES - queuedInputBytes) {
-            return "PTY input queue limit exceeded; input was rejected.\\n"
+            return "PTY input queue limit exceeded; input was rejected.\n"
         }
 
         queuedInputBytes += input.size
@@ -764,7 +764,7 @@ private class MyshProcess(
                 } catch (error: Exception) {
                     if (!closed) {
                         statusCallback?.invoke(
-                            "PTY input failed: ${error.message}\\n"
+                            "PTY input failed: ${error.message}\n"
                         )
                     }
                 } finally {
@@ -776,7 +776,7 @@ private class MyshProcess(
         } catch (_: java.util.concurrent.RejectedExecutionException) {
             queuedInputBytes -= input.size
             if (!closed) {
-                return "PTY input queue is unavailable.\\n"
+                return "PTY input queue is unavailable.\n"
             }
         }
         return null
