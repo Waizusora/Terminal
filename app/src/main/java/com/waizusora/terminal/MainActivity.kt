@@ -425,7 +425,7 @@ private fun TerminalScreen() {
     pendingCloseId?.let { sessionId ->
         AlertDialog(
             onDismissRequest = { pendingCloseId = null },
-            title = { Text("Close session $sessionId?") },
+            title = { Text("Close session ${sessions.indexOfFirst { it.id == sessionId } + 1}?") },
             text = { Text("The shell process in this session will be terminated.") },
             confirmButton = {
                 TextButton(
