@@ -174,4 +174,91 @@ class PseudoTerminalInstrumentedTest {
         }
     }
 
+
+    @Test
+    fun closesPtyAndStartsANewIndependentSession() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val filesRoot = context.filesDir
+        val home = File(filesRoot, "home/pty-lifecycle")
+        val bin = File(filesRoot, "bin")
+        val sbin = File(filesRoot, "sbin")
+        val usrBin = File(filesRoot, "usr/bin")
+        val usrSbin = File(filesRoot, "usr/sbin")
+        listOf(home, bin, sbin, usrBin, usrSbin).forEach { directory ->
+            check(directory.isDirectory || directory.mkdirs()) {
+                "Unable to create test directory: ${directory.absolutePath}"
+            }
+        }
+
+        val nativeDirectory = File(context.applicationInfo.nativeLibraryDir)
+        val shell = MyshInstaller.resolveExecutable(nativeDirectory)
+        MyshInstaller.installRuntimeCommands(nativeDirectory, bin)
+        val commandPath = listOf(bin, sbin, usrBin, usrSbin)
+            .joinToString(File.pathSeparator) { it.absolutePath }
+
+        fun newSession() = PseudoTerminal(
+            shell = shell.absolutePath,
+            workingDirectory = home.absolutePath,
+            home = home.absolutePath,
+            prefix = filesRoot.absolutePath,
+            path = commandPath,
+            rows = 24,
+            columns = 80
+        )
+
+        val firstSession = newSession()
+        var secondSession: PseudoTerminal? = null
+        try {
+            firstSession.start()
+            firstSession.write(
+                "echo PTY_LIFECYCLE_FIRST\\n".toByteArray(Charsets.UTF_8)
+            )
+            val firstOutput = awaitOutput(firstSession, "PTY_LIFECYCLE_FIRST")
+            assertTrue(
+                "First PTY session did not return its output: $firstOutput",
+                firstOutput.contains("PTY_LIFECYCLE_FIRST")
+            )
+
+            val closeStarted = System.nanoTime()
+            firstSession.close()
+            val closeDuration = System.nanoTime() - closeStarted
+            assertTrue(
+                "Closing the PTY session exceeded five seconds",
+                closeDuration < TimeUnit.SECONDS.toNanos(5)
+            )
+            assertTrue(
+                "A closed PTY session must not return stale output",
+                firstSession.read()?.isEmpty() == true
+            )
+            firstSession.close()
+
+            secondSession = newSession()
+            secondSession.start()
+            secondSession.write(
+                "echo PTY_LIFECYCLE_SECOND\\n".toByteArray(Charsets.UTF_8)
+            )
+            val secondOutput = awaitOutput(secondSession, "PTY_LIFECYCLE_SECOND")
+            assertTrue(
+                "A new PTY session failed after the previous session closed: $secondOutput",
+                secondOutput.contains("PTY_LIFECYCLE_SECOND")
+            )
+        } finally {
+            firstSession.close()
+            secondSession?.close()
+        }
+    }
+
+    private fun awaitOutput(terminal: PseudoTerminal, marker: String): String {
+        val output = ByteArrayOutputStream()
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
+        while (System.nanoTime() < deadline) {
+            val bytes = terminal.read() ?: continue
+            if (bytes.isEmpty()) break
+            output.write(bytes)
+            val currentOutput = output.toString(Charsets.UTF_8.name())
+            if (currentOutput.contains(marker)) return currentOutput
+        }
+        return output.toString(Charsets.UTF_8.name())
+    }
+
 }
