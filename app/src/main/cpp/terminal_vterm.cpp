@@ -536,7 +536,7 @@ Java_com_waizusora_terminal_NativePty_nativeWrite(
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_waizusora_terminal_NativePty_nativeResize(
-    JNIEnv*, jclass, jlong handle, jint rows, jint columns) {
+    JNIEnv* env, jclass, jlong handle, jint rows, jint columns) {
     PtyProcess* process = ptyFrom(handle);
     if (process == nullptr || process->masterFd < 0 || rows <= 0 || columns <= 0) return;
 
