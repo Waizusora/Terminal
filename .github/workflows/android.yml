@@ -80,7 +80,7 @@ jobs:
           targets: aarch64-linux-android,x86_64-linux-android
 
       - name: Run Mysh host tests
-        run: cargo test --manifest-path .build/Mysh/Cargo.toml --locked --all-targets
+        run: cargo test --manifest-path .build/Mysh/Cargo.toml --all-targets
 
       - name: Configure Android NDK compiler tools
         shell: bash
@@ -119,7 +119,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --package my-pkg-keeper --target aarch64-linux-android
+          cargo build --manifest-path .build/Mysh/Cargo.toml --release --package my-pkg-keeper --target aarch64-linux-android
           cargo build --manifest-path .build/Mysh/Cargo.toml --locked --release --package my-pkg-keeper --target x86_64-linux-android
 
       - name: Build and package Mysh for Android ABIs
