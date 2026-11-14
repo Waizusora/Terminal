@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
@@ -25,9 +27,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -39,6 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
@@ -113,6 +119,7 @@ private fun TerminalScreen() {
     var activeId by remember { mutableStateOf(1) }
     var nextSessionId by remember { mutableStateOf(1) }
     var controlArmed by remember { mutableStateOf(false) }
+    var pendingCloseId by remember { mutableStateOf<Int?>(null) }
     var terminalRows by remember { mutableStateOf(24) }
     var terminalColumns by remember { mutableStateOf(80) }
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -206,23 +213,50 @@ private fun TerminalScreen() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     sessions.forEach { session ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                        Surface(
+                            onClick = { activeId = session.id },
                             modifier = Modifier
-                                .background(
-                                    if (session.id == activeId) Color(0xFF303238) else Color(0xFF1B1D22),
-                                    MaterialTheme.shapes.small
-                                )
-                                .clickable { activeId = session.id }
-                                .padding(start = 11.dp, end = 7.dp, top = 6.dp, bottom = 6.dp)
+                                .width(96.dp)
+                                .height(40.dp),
+                            color = if (session.id == activeId) Color(0xFF343840) else Color(0xFF1D2026),
+                            shape = MaterialTheme.shapes.medium
                         ) {
-                            Text(
-                                text = session.id.toString(),
-                                color = Color(0xFFEAEAEA),
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                            TerminalKey(label = "×", onClick = { closeSession(session.id) })
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(start = 10.dp, end = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.weight(1f).fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = session.id.toString(),
+                                        color = Color(0xFFEAEAEA),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                Surface(
+                                    onClick = { pendingCloseId = session.id },
+                                    modifier = Modifier.size(30.dp),
+                                    color = Color(0xFF41454D),
+                                    shape = CircleShape
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "×",
+                                            color = Color(0xFFD9DCE2),
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -373,6 +407,32 @@ private fun TerminalScreen() {
                 }
             }
         }
+    }
+
+    pendingCloseId?.let { sessionId ->
+        AlertDialog(
+            onDismissRequest = { pendingCloseId = null },
+            title = { Text("Close session $sessionId?") },
+            text = { Text("The shell process in this session will be terminated.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        closeSession(sessionId)
+                        pendingCloseId = null
+                    }
+                ) {
+                    Text("Close")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingCloseId = null }) {
+                    Text("Cancel")
+                }
+            },
+            containerColor = Color(0xFF202329),
+            titleContentColor = Color(0xFFEAEAEA),
+            textContentColor = Color(0xFFBFC3CC)
+        )
     }
 }
 
