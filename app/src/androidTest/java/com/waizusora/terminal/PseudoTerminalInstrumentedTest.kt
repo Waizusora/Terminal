@@ -181,10 +181,11 @@ class PseudoTerminalInstrumentedTest {
         try {
             terminal.start()
             terminal.write(
-                "trap 'echo PTY_WINCH_RECEIVED' WINCH; " +
-                    "echo PTY_WINCH_READY\n" +
-                    "while :; do sleep 1; done\n"
-                    .toByteArray(Charsets.UTF_8)
+                (
+                    "trap 'echo PTY_WINCH_RECEIVED' WINCH; " +
+                        "echo PTY_WINCH_READY\n" +
+                        "while :; do sleep 1; done\n"
+                    ).toByteArray(Charsets.UTF_8)
             )
 
             val readyOutput = awaitOutputEventually(terminal, "PTY_WINCH_READY")
