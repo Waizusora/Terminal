@@ -18,7 +18,7 @@ internal object NativePty {
         columns: Int
     ): Long
 
-    @JvmStatic external fun nativeRead(handle: Long, maximumBytes: Int): ByteArray
+    @JvmStatic external fun nativeRead(handle: Long, maximumBytes: Int): ByteArray?
     @JvmStatic external fun nativeWrite(handle: Long, input: ByteArray)
     @JvmStatic external fun nativeResize(handle: Long, rows: Int, columns: Int)
     @JvmStatic external fun nativeClose(handle: Long)
@@ -45,7 +45,8 @@ internal class PseudoTerminal(
         if (handle == 0L) throw IOException("Unable to create the PTY process.")
     }
 
-    fun read(): ByteArray {
+    @Synchronized
+    fun read(): ByteArray? {
         val current = handle
         return if (current != 0L) NativePty.nativeRead(current, 4096) else byteArrayOf()
     }
