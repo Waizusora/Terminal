@@ -218,7 +218,7 @@ private fun TerminalScreen() {
                             modifier = Modifier
                                 .width(96.dp)
                                 .height(40.dp),
-                            color = if (session.id == activeId) Color(0xFF343840) else Color(0xFF1D2026),
+                            color = if (session.id == activeId) Color(0xFF343B48) else Color(0xFF242830),
                             shape = MaterialTheme.shapes.medium
                         ) {
                             Row(
