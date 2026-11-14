@@ -17,6 +17,10 @@ Terminal is a native Android terminal application that runs the Mysh executable 
 
 The interface is focused on the terminal workspace. The top bar does not display an application title; it places sequentially numbered session tabs from the left and keeps the plus control at the right edge. The session strip scrolls horizontally when its tabs exceed the available width, while the plus control remains fixed. Each session tab uses a consistent 96 dp by 40 dp rounded rectangle with a centered session number and a separate close control on the right. Closing a session requires confirmation before its shell process is terminated. Selecting a session switches the active process without terminating the other sessions. Tapping the terminal viewport requests input focus and opens the Android software keyboard. A compact terminal key row provides Escape, Enter, Control, Alt, Tab, cursor navigation, Home, End, Delete, and Control shortcuts for C, D, Z, and L. The top-level content applies the Android status-bar inset so the session tabs and fixed plus control remain below system UI.
 
+## UI color system
+
+The application interface uses the Obsidian Graphite palette: background `#101114`, secondary surface `#191C22`, inactive session `#242830`, active session `#343B48`, shortcut surface `#20242C`, accent `#8AB4F8`, primary text `#E6E8ED`, secondary text `#9299A5`, and destructive actions `#E57373`. These colors apply to application chrome and controls. Terminal-emulator ANSI and truecolor output remains mapped from the shell's color sequences and is not replaced by the application palette.
+
 ## Terminal emulation
 
 Each session owns an independent libvterm instance. Mysh output bytes are passed to the emulator, which maintains a VT screen grid. The Compose renderer reads the cell grid and renders Unicode text, foreground and background colors, bold, italic, underline, strike-through, and reverse video. The cursor position and visibility are obtained from libvterm and rendered as a visible cursor bar in the active terminal viewport.
