@@ -17,9 +17,9 @@ The application bundles these native executables for each supported ABI:
 
 | Component | Purpose |
 | --- | --- |
-| Mysh (\`libmysh.so\`) | Interactive shell |
-| uutils Coreutils (\`libcoreutils.so\`) | Common command-line utilities |
-| MYPK (\`libmypk.so\`) | Package-management runtime; currently supports \`--help\` and \`--version\` only |
+| Mysh (`libmysh.so`) | Interactive shell |
+| uutils Coreutils (`libcoreutils.so`) | Common command-line utilities |
+| MYPK (`libmypk.so`) | Package-management runtime; currently supports `--help` and `--version` only |
 
 The `.so` filenames are packaging conventions. Mysh, Coreutils, and MYPK are standalone executables, not libraries loaded into the Android app process.
 
