@@ -162,6 +162,14 @@ jobs:
           test -x app/src/main/jniLibs/arm64-v8a/libmypk.so
           test -x app/src/main/jniLibs/x86_64/libmypk.so
 
+          for abi in arm64-v8a x86_64; do
+            for binary in libmysh.so libcoreutils.so libmypk.so; do
+              executable="app/src/main/jniLibs/$abi/$binary"
+              readelf -h "$executable" | grep -F "Type:" | grep -F "DYN"
+              readelf -l "$executable" | grep -F "Requesting program interpreter: /system/bin/linker64"
+            done
+          done
+
       - name: Enable KVM for Android emulator
         shell: bash
         run: |
