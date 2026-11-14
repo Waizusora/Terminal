@@ -431,6 +431,7 @@ Java_com_waizusora_terminal_NativePty_nativeStart(
         {"PWD", workingDirectory},
         {"SHELL", shell},
         {"PREFIX", prefix},
+        {"MYSH_PREFIX", prefix},
         {"PATH", path},
         {"LD_LIBRARY_PATH", prefix + "/lib:" + prefix + "/usr/lib"},
         {"TMPDIR", prefix + "/tmp"},
