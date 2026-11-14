@@ -698,7 +698,14 @@ private class MyshProcess(
 
     fun close() {
         closed = true
-        terminal?.close()
+        val activeTerminal = terminal
+        terminal = null
         executor.shutdownNow()
+        if (activeTerminal != null) {
+            Thread(
+                { activeTerminal.close() },
+                "Mysh-PTY-shutdown"
+            ).start()
+        }
     }
 }
