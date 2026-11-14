@@ -22,6 +22,7 @@ internal object NativePty {
     @JvmStatic external fun nativeWrite(handle: Long, input: ByteArray)
     @JvmStatic external fun nativeResize(handle: Long, rows: Int, columns: Int)
     @JvmStatic external fun nativeProcessId(handle: Long): Long
+    @JvmStatic external fun nativeWindowSize(handle: Long): IntArray
     @JvmStatic external fun nativeClose(handle: Long)
 }
 
@@ -65,6 +66,15 @@ internal class PseudoTerminal(
         val current = handle
         check(current != 0L) { "PTY has not been started or is already closed." }
         return NativePty.nativeProcessId(current)
+    }
+
+    @Synchronized
+    fun windowSize(): Pair<Int, Int> {
+        val current = handle
+        check(current != 0L) { "PTY has not been started or is already closed." }
+        val size = NativePty.nativeWindowSize(current)
+        check(size.size == 2) { "Native PTY returned an invalid window size." }
+        return size[0] to size[1]
     }
 
     @Synchronized
