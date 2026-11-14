@@ -16,9 +16,12 @@ internal object MyshInstaller {
         return executable
     }
 
-    fun verifyExecutable(executable: File): String {
+    fun verifyExecutable(executable: File): String =
+        verifyRuntimeExecutable(executable, "Mysh")
+
+    private fun verifyRuntimeExecutable(executable: File, name: String): String {
         if (!executable.isFile || !executable.canExecute()) {
-            throw IOException("Mysh is missing or is not executable: ${executable.absolutePath}")
+            throw IOException("$name is missing or is not executable: ${executable.absolutePath}")
         }
 
         val process = try {
@@ -34,7 +37,7 @@ internal object MyshInstaller {
                 .distinct()
                 .joinToString(": ")
             throw IOException(
-                "Android could not launch packaged Mysh at ${executable.absolutePath}: ${detail.ifBlank { "unknown execution error" }}",
+                "Android could not launch packaged $name at ${executable.absolutePath}: ${detail.ifBlank { "unknown execution error" }}",
                 error
             )
         }
@@ -42,26 +45,24 @@ internal object MyshInstaller {
         if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
             process.destroyForcibly()
             process.waitFor()
-            throw IOException("Mysh version check timed out.")
+            throw IOException("$name version check timed out.")
         }
 
         val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
         if (process.exitValue() != 0 || output.isBlank()) {
-            throw IOException("Mysh executable verification failed: ${output.ifBlank { "no version output" }}")
+            throw IOException("$name executable verification failed: ${output.ifBlank { "no version output" }}")
         }
         return output
     }
 
     @Synchronized
     fun installRuntimeCommands(nativeLibraryDirectory: File, binDirectory: File) {
-        installCommandLink(
-            File(nativeLibraryDirectory, "libcoreutils.so"),
-            File(binDirectory, "coreutils")
-        )
-        installCommandLink(
-            File(nativeLibraryDirectory, "libmypk.so"),
-            File(binDirectory, "mypk")
-        )
+        val coreutils = File(nativeLibraryDirectory, "libcoreutils.so")
+        val mypk = File(nativeLibraryDirectory, "libmypk.so")
+        installCommandLink(coreutils, File(binDirectory, "coreutils"))
+        installCommandLink(mypk, File(binDirectory, "mypk"))
+        verifyRuntimeExecutable(coreutils, "Coreutils")
+        verifyRuntimeExecutable(mypk, "MYPK")
     }
 
     private fun installCommandLink(executable: File, link: File) {
